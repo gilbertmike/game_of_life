@@ -1,3 +1,5 @@
 # Vivado project
 vivado/
 vivado*
+.Xil/
+
