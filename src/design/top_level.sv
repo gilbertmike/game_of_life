@@ -4,57 +4,51 @@ module top_level(input wire clk_100mhz,
                  input wire[15:0] sw,
                  output logic[3:0] vga_r, vga_g, vga_b,
                  output logic vga_hs, vga_vs);
-    parameter LINE_WIDTH = 8;
-    parameter ADDR_SIZE = 3;
-    parameter LOG_MAX_SPEED = 3;
-    parameter SPEED_SW = 0;
 
-    logic[ADDR_SIZE-1:0] addr_rend_r;
-    logic[LINE_WIDTH-1:0] data_rend_r;
-    logic[ADDR_SIZE-1:0] addr_logic_r;
-    logic[ADDR_SIZE-1:0] addr_logic_w;
-    logic[LINE_WIDTH-1:0] data_logic_w;
-    logic[LINE_WIDTH-1:0] data_logic_r;
+    pos_t cursor_x, cursor_y, view_x, view_y;
+    speed_t speed;
+    logic click;
+    user_interface ui(.clk_in(clk_100mhz), .btnd_in(btnd), .btnc_in(btnc),
+                      .btnl_in(btnl), .btnr_in(btnr), .btnu_in(btnu),
+                      .sw_in(sw), .speed_out(speed), .cursor_x_out(cursor_x),
+                      .cursor_y_out(cursor_y), .click_out(click),
+                      .view_x_out(view_x), .view_y_out(view_y));
+
+    logic logic_done, render_done;
+    logic logic_start, render_start, buf_swap;
+    synchronizer sync(.clk_in(clk_100mhz), .logic_done_in(logic_done),
+                      .render_done_in(render_done),
+                      .logic_start_out(logic_start),
+                      .render_start_out(render_start),
+                      .buf_swap_out(buf_swap));
+
+    addr_t render_addr_r;
+    data_t render_data_r;
+    addr_t logic_addr_r, logic_addr_w;
+    data_t logic_data_r, logic_data_w;
+    logic logic_wr_en;
     
-    logic buf_swap, logic_done;
-    logic[1:0] done_count;
-    always_ff @(posedge clk_100mhz) begin
-        if (sw[15]) begin
-            done_count <= 2'd0;
-        end else if (done_count == 2'd0) begin
-            buf_swap <= 1'b0;
-        end else begin
-            case ({logic_done, vga_vs})
-                2'b11: begin
-                    done_count <= 2'd0;
-                    buf_swap <= 1'b1;
-                end
-                2'b10: done_count <= 2'd1;
-                2'b01: done_count <= 2'd1;
-                default: begin
-                    done_count <= 2'd0;
-                    buf_swap <= 1'b0;
-                end
-            endcase
-        end
-    end
+    double_buffer db(
+        .clk_in(clk_100mhz), .swap_in(buf_swap), .render_addr_r(render_addr_r),
+        .logic_addr_r(logic_addr_r), .logic_addr_w(logic_addr_w),
+        .logic_wr_en(logic_wr_en),
+        .render_data_r(render_data_r), .logic_data_w(logic_data_w),
+        .logic_data_r(logic_data_r));
 
-    double_buffer#(.ADDR_SIZE(ADDR_SIZE), .LINE_WIDTH(LINE_WIDTH)) db(
-        .clk_in(clk_100mhz), .addr_rend_r(addr_rend_r), .swap_in(buf_swap),
-        .addr_logic_r(addr_logic_r), .addr_logic_w(addr_logic_w),
-        .data_rend_r(data_rend_r), .data_logic_w(data_logic_w),
-        .data_logic_r(data_logic_r));
-
-    renderer#(.LINE_WIDTH(LINE_WIDTH)) renderer0(
-        .clk_in(clk_100mhz), .data_in(data_rend_r), .addr_r_out(addr_rend_r),
+    renderer renderer(
+        .clk_in(clk_100mhz), .start_in(render_start), .data_in(render_data_r),
+        .view_x_in(view_x), .view_y_in(view_y),
+        .done_out(render_done), .addr_r_out(render_addr_r),
         .pix_out({vga_r, vga_g, vga_b}), .vsync_out(vga_vs),
         .hsync_out(vga_hs));
 
-    life_logic#(.ADDR_SIZE(ADDR_SIZE), .LINE_WIDTH(LINE_WIDTH),
-                .LOG_MAX_SPEED(LOG_MAX_SPEED))
-        life_logic0(.clk_in(clk_100mhz),
-                    .speed_in(sw[SPEED_SW+LOG_MAX_SPEED-1:SPEED_SW]),
-                    .addr_r_out(addr_logic_r), .addr_w_out(addr_logic_w),
-                    .data_out(data_logic_w), .done_out(logic_done));
+    life_logic life_logic(
+        .clk_in(clk_100mhz), .start_in(logic_start),
+        .speed_in(speed),
+        .cursor_x_in(cursor_x), .cursor_y_in(cursor_y),
+        .cursor_click_in(click), .data_r_in(logic_data_r),
+        .addr_r_out(logic_addr_r), .addr_w_out(logic_addr_w),
+        .wr_en_out(logic_wr_en),
+        .data_out(logic_data_w), .done_out(logic_done));
 endmodule
 `default_nettype wire
