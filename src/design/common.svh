@@ -2,7 +2,7 @@
 `define COMMON_SVH_
 
 // Memory and game state parameters
-parameter LOG_LINE_WIDTH = 3;
+parameter LOG_LINE_WIDTH = 4;
 parameter LOG_BOARD_SIZE = 10;
 
 parameter LOG_MAX_ADDR = LOG_BOARD_SIZE*2 - LOG_LINE_WIDTH;
