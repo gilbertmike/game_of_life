@@ -4,9 +4,11 @@
 // Memory and game state parameters
 parameter LOG_LINE_WIDTH = 4;
 parameter LOG_BOARD_SIZE = 10;
+parameter LOG_VIEW_SIZE = 8;
 
 parameter LOG_MAX_ADDR = LOG_BOARD_SIZE*2 - LOG_LINE_WIDTH;
 parameter BOARD_SIZE = 2**LOG_BOARD_SIZE;
+parameter VIEW_SIZE = 2**LOG_VIEW_SIZE;
 
 
 // User input parameters
