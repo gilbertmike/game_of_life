@@ -1,26 +1,50 @@
 `timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 11/02/2021 09:14:03 PM
-// Design Name: 
-// Module Name: synchronizer_tb
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
 
+module synchronizer_tb;
+    
+    //initialize inputs
+    logic clk;
+    logic rst;
+    logic logic_done;
+    logic render_done;
+    logic buf_ready;
 
-module synchronizer_tb(
+    //initialize outputs
+    logic logic_start;
+    logic render_start;
+    logic buf_swap;
 
-    );
+    //initialize uut
+    synchronizer uut(.clk_in(clk),
+                     .rst_in(rst),
+                     .logic_done_in(logic_done),
+                     .render_done_in(render_done),
+                     .buf_ready_in(buf_ready),
+                     .logic_start_out(logic_start),
+                     .render_start_out(render_start),
+                     .buf_swap_out(buf_swap));
+
+    //clock
+    always #5 clk = !clk;
+
+    initial begin
+        clk = 0;
+        rst = 0;
+        logic_done = 0;
+        render_done = 0;
+        buf_ready = 0;
+        #5
+        rst = 1;
+        #5
+        rst = 0;
+        logic_done = 1;
+        #5
+        buf_ready = 1;
+        #5
+        buf_ready = 1;
+        render_done = 1;
+        #5
+        buf_ready = 1;
+
+    end
 endmodule
