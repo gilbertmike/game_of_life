@@ -17,7 +17,7 @@ When creating a new IP, make sure to:
 
 When committing, make sure to:
   1. Your new code is tested and documented.
-  2. Run `write_project_tcl game_of_life.tcl` in the Tcl console.
+  2. Run `write_project_tcl game_of_life.tcl -force` in the Tcl console.
   3. git add and git commit as usual.
 
 ## Authors
