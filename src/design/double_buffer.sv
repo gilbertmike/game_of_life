@@ -1,17 +1,16 @@
 `include "common.svh"
 
 `default_nettype none
-module double_buffer#(ADDR_SIZE=32, LINE_WIDTH=8)
-                     (input wire clk_in,
-                      input wire rst_in,
-                      input wire swap_in,
-                      input wire[ADDR_SIZE-1:0] render_addr_r,
-                      input wire[ADDR_SIZE-1:0] logic_addr_r,
-                      input wire[ADDR_SIZE-1:0] logic_addr_w,
-                      input wire[LINE_WIDTH-1:0] logic_data_w,
-                      input wire logic_wr_en,
-                      output logic[LINE_WIDTH-1:0] render_data_r,
-                      output logic[LINE_WIDTH-1:0] logic_data_r);
+module double_buffer(input wire clk_in,
+                     input wire rst_in,
+                     input wire swap_in,
+                     input wire[LOG_MAX_ADDR-1:0] render_addr_r,
+                     input wire[LOG_MAX_ADDR-1:0] logic_addr_r,
+                     input wire[LOG_MAX_ADDR-1:0] logic_addr_w,
+                     input wire[WORD_SIZE-1:0] logic_data_w,
+                     input wire logic_wr_en,
+                     output logic[WORD_SIZE-1:0] render_data_r,
+                     output logic[WORD_SIZE-1:0] logic_data_r);
     addr_t buf0_addra;
     data_t buf0_data_ra;
     data_t buf0_data_wa;
