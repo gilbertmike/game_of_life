@@ -2,7 +2,7 @@
 
 `default_nettype none
 module renderer(input wire clk_in, start_in,
-                input wire[LOG_LINE_WIDTH-1:0] data_in,
+                input wire[WORD_SIZE-1:0] data_in,
                 input wire[LOG_MAX_ADDR-1:0] view_x_in, view_y_in,
                 output wire[LOG_MAX_ADDR-1:0] addr_r_out,
                 output logic done_out,
@@ -24,9 +24,6 @@ module renderer(input wire clk_in, start_in,
                 output logic[LOG_SCREEN_WIDTH-1:0] hsync_out,
                 output logic blank_out);
 
-        parameter DISPLAY_WIDTH  = 1024;      // display width
-        parameter DISPLAY_HEIGHT = 768;       // number of lines
-
         parameter  H_FP = 24;                 // horizontal front porch
         parameter  H_SYNC_PULSE = 136;        // horizontal sync
         parameter  H_BP = 160;                // horizontal back porch
@@ -39,24 +36,24 @@ module renderer(input wire clk_in, start_in,
         // display 1024 pixels per line
         logic hblank,vblank;
         logic hsyncon,hsyncoff,hreset,hblankon;
-        assign hblankon = (hcount_out == (DISPLAY_WIDTH -1));    
-        assign hsyncon = (hcount_out == (DISPLAY_WIDTH + H_FP - 1));  //1047
-        assign hsyncoff = (hcount_out == (DISPLAY_WIDTH + H_FP + H_SYNC_PULSE - 1));  // 1183
-        assign hreset = (hcount_out == (DISPLAY_WIDTH + H_FP + H_SYNC_PULSE + H_BP - 1));  //1343
+        assign hblankon = (hcount_out == (LOG_SCREEN_WIDTH -1));    
+        assign hsyncon = (hcount_out == (LOG_SCREEN_WIDTH + H_FP - 1));  //1047
+        assign hsyncoff = (hcount_out == (LOG_SCREEN_WIDTH + H_FP + H_SYNC_PULSE - 1));  // 1183
+        assign hreset = (hcount_out == (LOG_SCREEN_WIDTH + H_FP + H_SYNC_PULSE + H_BP - 1));  //1343
 
         // vertical: 806 lines total
         // display 768 lines
         logic vsyncon,vsyncoff,vreset,vblankon;
-        assign vblankon = hreset & (vcount_out == (DISPLAY_HEIGHT - 1));   // 767 
-        assign vsyncon = hreset & (vcount_out == (DISPLAY_HEIGHT + V_FP - 1));  // 771
-        assign vsyncoff = hreset & (vcount_out == (DISPLAY_HEIGHT + V_FP + V_SYNC_PULSE - 1));  // 777
-        assign vreset = hreset & (vcount_out == (DISPLAY_HEIGHT + V_FP + V_SYNC_PULSE + V_BP - 1)); // 805
+        assign vblankon = hreset & (vcount_out == (LOG_SCREEN_HEIGHT - 1));   // 767 
+        assign vsyncon = hreset & (vcount_out == (LOG_SCREEN_HEIGHT + V_FP - 1));  // 771
+        assign vsyncoff = hreset & (vcount_out == (LOG_SCREEN_HEIGHT + V_FP + V_SYNC_PULSE - 1));  // 777
+        assign vreset = hreset & (vcount_out == (LOG_SCREEN_HEIGHT + V_FP + V_SYNC_PULSE + V_BP - 1)); // 805
 
         // sync and blanking
         logic next_hblank,next_vblank;
         assign next_hblank = hreset ? 0 : hblankon ? 1 : hblank;
         assign next_vblank = vreset ? 0 : vblankon ? 1 : vblank;
-        always_ff @(posedge vclock_in) begin
+        always_ff @(posedge clk_in) begin
             hcount_out <= hreset ? 0 : hcount_out + 1;
             hblank <= next_hblank;
             hsync_out <= hsyncon ? 0 : hsyncoff ? 1 : hsync_out;  // active low
@@ -71,17 +68,17 @@ module renderer(input wire clk_in, start_in,
 
     //initiate xvga instance
     xvga xvga1(.clk_in(clk_in),
-               .hcount_out(h_count),
-               .vcount_out(v_count),
-               .vsync_out(v_sync),
-               .hsync_out(hsync)
+               .hcount_out(hcount),
+               .vcount_out(vcount),
+               .vsync_out(vsync),
+               .hsync_out(hsync),
                .blank_out(blank));
 
     //render_fetch module, to fetch info on squares within view window
     module render_fetch (input wire clk_in, rst_in,
-                        input wire[LOG_LINE_WIDTH-1:0] view_x_in, view_y_in,
-                        input wire[LINE_WIDTH-1:0] data_r_in,
-                        output logic[ADDR_SIZE-1:0] addr_r_out
+                        input wire[LOG_BOARD_SIZE-1:0] view_x_in, view_y_in,
+                        input wire[WORD_SIZE-1:0] data_r_in,
+                        output logic[LOG_MAX_ADDR-1:0] addr_r_out,
                         output logic is_alive_out);
 
         always_ff @(posedge clk_in) begin
