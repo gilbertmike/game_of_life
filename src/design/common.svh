@@ -5,7 +5,7 @@
 parameter LOG_WORD_SIZE = 4;
 parameter LOG_BOARD_SIZE = 10;
 parameter LOG_VIEW_SIZE = 8;
-parameter WINDOW_WIDTH = 3
+parameter WINDOW_WIDTH = 3;
 
 parameter WORD_SIZE = 2**LOG_WORD_SIZE;
 parameter LOG_MAX_ADDR = LOG_BOARD_SIZE*2 - LOG_WORD_SIZE;
