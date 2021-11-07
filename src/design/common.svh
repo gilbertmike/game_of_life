@@ -29,7 +29,7 @@ parameter LOG_SCREEN_HEIGHT = $clog2(SCREEN_HEIGHT);
 
 // Commonly used data types
 typedef logic[LOG_MAX_ADDR-1:0] addr_t;
-typedef logic[LOG_WORD_SIZE-1:0] data_t;
+typedef logic[WORD_SIZE-1:0] data_t;
 
 typedef logic[LOG_MAX_SPEED-1:0] speed_t;
 
