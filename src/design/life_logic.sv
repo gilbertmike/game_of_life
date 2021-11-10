@@ -26,8 +26,7 @@ endmodule
  *  - If stall is asserted, then the output is invalid and will be
  *    resumed eventually.
  */
-module life_fetcher#(parameter STRIDE = 1)
-                    (input wire clk_in,
+module logic_fetcher(input wire clk_in,
                      input wire start_in,
                      input wire[WORD_SIZE-1:0] data_in,
                      output logic[WINDOW_WIDTH-1:0] window_out[2:0],
@@ -35,6 +34,7 @@ module life_fetcher#(parameter STRIDE = 1)
                      output logic[LOG_BOARD_SIZE-1:0] x_out, y_out,
                      output logic stall_out);
     localparam WORDS_PER_ROW = BOARD_SIZE / WORD_SIZE;
+    localparam STRIDE = WINDOW_WIDTH-2;
 
     enum logic[1:0] { DONE, ROW_START_0, ROW_START_1, STEADY } state;
     enum logic[1:0] { IDLE, FETCH_ROW_0, FETCH_ROW_1, FETCH_ROW_2 } row_state;
@@ -69,7 +69,7 @@ module life_fetcher#(parameter STRIDE = 1)
                         y_out <= y_out + 1;
                         stall_out <= 1;
                     end else begin
-                        x_out <= x_out + 1;
+                        x_out <= x_out + STRIDE;
                     end
                 end
                 DONE: begin /* wait for start */ end
@@ -182,3 +182,81 @@ module life_fetcher#(parameter STRIDE = 1)
         end
     end
 endmodule
+`default_nettype wire
+
+`default_nettype none
+module logic_rule(input wire clk_in, stall_in,
+                  input wire[LOG_BOARD_SIZE-1:0] x_in,
+                  input wire[LOG_BOARD_SIZE-1:0] y_in,
+                  input wire[WINDOW_WIDTH-1:0] window_in[2:0],
+                  input wire[LOG_BOARD_SIZE-1:0] cursor_x_in,
+                  input wire[LOG_BOARD_SIZE-1:0] cursor_y_in,
+                  input wire cursor_click_in,
+                  input wire update_in,
+                  output logic[NUM_PE-1:0] state_out);
+    logic[3:0] neighbor_cnt[NUM_PE-1:0];
+    logic[NUM_PE-1:0] old_state;
+    logic[NUM_PE-1:0] next_state;
+    always_comb begin
+        for (integer i = NUM_PE-1; i >= 0; i++) begin
+            old_state[i] = window_in[1][i+1];
+            neighbor_cnt[i] = window_in[2][i+2] + window_in[2][i+1]
+                            + window_in[2][i] + window_in[1][i+2]
+                            + window_in[1][i] + window_in[0][i+2]
+                            + window_in[0][i+1] + window_in[0][i];
+            if (update_in) begin
+                if (old_state[i]) begin
+                    if (neighbor_cnt[i] > 3) // overpopulation
+                        next_state[i] = 1'b0;
+                    else if (neighbor_cnt[i] < 2) // underpopulation
+                        next_state[i] = 1'b0;
+                    else // lives on
+                        next_state[i] = 1'b1;
+                end else if (neighbor_cnt[i] == 3) // reproduction
+                    next_state[i] = 1'b1;
+                else
+                    next_state[i] = 1'b0;
+            end else begin
+                next_state[i] = window_in[1][i+1];
+            end
+        end
+    end
+
+    always_ff @(posedge clk_in) begin
+        for (integer i = NUM_PE-1; i >= 0; i++) begin
+            if (x_in + NUM_PE-1-i == cursor_x_in && y_in == cursor_y_in
+                    && cursor_click_in && !stall_in)
+                state_out[i] <= !old_state[i];
+            else if (!stall_in)
+                state_out[i] <= next_state[i];
+        end
+    end
+endmodule
+
+`default_nettype none
+module logic_writeback(input wire clk_in, stall_in, start_in,
+                       input wire[NUM_PE-1:0] next_state_in,
+                       output logic wr_en_out,
+                       output logic[LOG_MAX_ADDR-1:0] addr_w_out,
+                       output logic[WORD_SIZE-1:0] data_w_out);
+    logic[LOG_WORD_SIZE-1:0] buffer_idx;
+    always_ff @(posedge clk_in) begin
+        if (start_in) begin
+            buffer_idx <= WORD_SIZE-1;
+            addr_w_out <= MAX_ADDR-1;
+            wr_en_out <= 0;
+            data_w_out <= 0;
+        end else if (!stall_in) begin
+            buffer_idx <= buffer_idx - NUM_PE;
+            data_w_out <= {data_w_out[WORD_SIZE-3:0], next_state_in};
+            if (buffer_idx < WORD_SIZE - NUM_PE) begin
+                wr_en_out <= 0;
+            end else begin
+                wr_en_out <= 1;
+                addr_w_out <= addr_w_out + 1;
+            end
+        end
+    end
+endmodule
+`default_nettype wire
+
