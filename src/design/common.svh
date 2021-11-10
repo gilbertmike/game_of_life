@@ -23,6 +23,8 @@ parameter MAX_SPEED = 2**LOG_MAX_SPEED;
 // Drawing parameters
 parameter SCREEN_WIDTH = 1024;
 parameter SCREEN_HEIGHT = 768;
+parameter CELL_SIZE = 16;
+parameter LOG_CELL_SIZE = $clog2(CELL_SIZE);
 parameter LOG_SCREEN_WIDTH = $clog2(SCREEN_WIDTH);
 parameter LOG_SCREEN_HEIGHT = $clog2(SCREEN_HEIGHT);
 
