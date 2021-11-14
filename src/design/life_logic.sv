@@ -193,12 +193,13 @@ module logic_rule(input wire clk_in, stall_in,
                   input wire[LOG_BOARD_SIZE-1:0] cursor_y_in,
                   input wire cursor_click_in,
                   input wire update_in,
-                  output logic[NUM_PE-1:0] state_out);
+                  output logic[NUM_PE-1:0] state_out,
+                  output logic stall_out);
     logic[3:0] neighbor_cnt[NUM_PE-1:0];
     logic[NUM_PE-1:0] old_state;
     logic[NUM_PE-1:0] next_state;
     always_comb begin
-        for (integer i = NUM_PE-1; i >= 0; i++) begin
+        for (integer i = NUM_PE-1; i >= 0; i--) begin
             old_state[i] = window_in[1][i+1];
             neighbor_cnt[i] = window_in[2][i+2] + window_in[2][i+1]
                             + window_in[2][i] + window_in[1][i+2]
@@ -223,13 +224,14 @@ module logic_rule(input wire clk_in, stall_in,
     end
 
     always_ff @(posedge clk_in) begin
-        for (integer i = NUM_PE-1; i >= 0; i++) begin
+        for (integer i = NUM_PE-1; i >= 0; i--) begin
             if (x_in + NUM_PE-1-i == cursor_x_in && y_in == cursor_y_in
                     && cursor_click_in && !stall_in)
                 state_out[i] <= !old_state[i];
             else if (!stall_in)
                 state_out[i] <= next_state[i];
         end
+        stall_out <= stall_in;
     end
 endmodule
 
