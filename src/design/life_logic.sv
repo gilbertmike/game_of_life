@@ -48,6 +48,8 @@ module logic_fetcher(input wire clk_in,
     always_ff @(posedge clk_in) begin
         if (start_in) begin
             state <= ROW_START_0;
+            x_out <= 0;
+            y_out <= 0;
         end else begin
             case (state)
                 ROW_START_0:
@@ -87,7 +89,7 @@ module logic_fetcher(input wire clk_in,
     assign starting_row = state == ROW_START_0 || state == ROW_START_1;
     always_ff @(posedge clk_in) begin
         if (start_in) begin
-            state <= ROW_START_0;
+            row_state <= FETCH_ROW_0;
             addr_out <= 0;
         end else begin
             case (row_state)
