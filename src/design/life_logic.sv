@@ -1,6 +1,14 @@
 `include "common.svh"
 
 `default_nettype none
+/**
+ * life_logic - computes next board state.
+ *
+ * Operation:
+ *  - Reads from double_buffer and writes the next state in.
+ *  - Pulse start_in to start operation.
+ *  - Check done_out to tell if next state is computed completely.
+ */
 module life_logic(input wire clk_in,
                   input wire start_in,
                   input wire[LOG_MAX_SPEED-1:0] speed_in,
@@ -10,9 +18,50 @@ module life_logic(input wire clk_in,
                   input wire cursor_click_in,
                   output logic[LOG_MAX_ADDR-1:0] addr_r_out,
                   output logic[LOG_MAX_ADDR-1:0] addr_w_out,
-                  output logic[LOG_WORD_SIZE-1:0] data_out,
+                  output logic[LOG_WORD_SIZE-1:0] data_w_out,
                   output logic wr_en_out,
                   output logic done_out);
+    // Central game logic FSM
+    logic update;
+    logic[7:0] counter;
+    always_ff @(posedge clk_in) begin
+        if (start_in) begin
+            update <= counter >= 8'hFF - speed_in ? 1'b1 : 1'b0;
+            counter <= counter + speed_in;
+        end else begin
+            update <= 1'b0;
+        end
+    end
+
+    logic fetch_stall, fetch_done;
+    pos_t fetch_x, fetch_x;
+    window_row_t window[2:0];
+    logic_fetcher fetch(.clk_in(clk), .start_in(start_in), .data_in(data_r_in),
+                        .window_out(window), .addr_out(addr_r_out), .x_out(x),
+                        .y_out(y), .stall_out(stall), .done_out(fetch_done));
+
+    logic rule_stall, rule_done;
+    logic[NUM_PE-1:0] rule_state;
+    logic_rule rule(.clk_in(clk), .stall_in(fetch_stall), .x_in(fetch_x),
+                    .y_in(fetch_y), .window_in(fetch_window),
+                    .done_in(fetch_done), .cursor_x_in(cursor_x_in),
+                    .cursor_y_in(cursor_y_in),
+                    .cursor_click_in(cursor_click_in), .update_in(update),
+                    .state_out(rule_state), .stall_out(rule_stall),
+                    .done_out(rule_done));
+
+    // Delay writeback start by 2 cycles
+    logic wb_start0;
+    logic wb_start;
+    always_ff @(posedge clk_in) begin
+        wb_start0 <= start_in;
+        wb_start <= wb_start0;
+    end
+    logic_writeback wb(.clk_in(clk), .stall_in(rule_stall),
+                       .done_in(rule_done), .start_in(wb_start),
+                       .next_state_in(rule_state), .wr_en_out(wr_en_out),
+                       .addr_w_out(addr_w_out), .data_w_out(data_w_out),
+                       .done_out(done_out));
 endmodule
 `default_nettype wire
 
@@ -25,6 +74,9 @@ endmodule
  *  - The output will start from (0, 0), the top left cell.
  *  - If stall is asserted, then the output is invalid and will be
  *    resumed eventually.
+ *
+ * Timing:
+ *  - Single pipeline stage with stall signal.
  */
 module logic_fetcher(input wire clk_in,
                      input wire start_in,
@@ -32,7 +84,8 @@ module logic_fetcher(input wire clk_in,
                      output logic[WINDOW_WIDTH-1:0] window_out[2:0],
                      output logic[LOG_MAX_ADDR-1:0] addr_out,
                      output logic[LOG_BOARD_SIZE-1:0] x_out, y_out,
-                     output logic stall_out);
+                     output logic stall_out,
+                     output logic done_out);
     localparam WORDS_PER_ROW = BOARD_SIZE / WORD_SIZE;
     localparam STRIDE = WINDOW_WIDTH-2;
 
@@ -50,6 +103,7 @@ module logic_fetcher(input wire clk_in,
             state <= ROW_START_0;
             x_out <= 0;
             y_out <= 0;
+            done_out <= 0;
         end else begin
             case (state)
                 ROW_START_0:
@@ -65,6 +119,7 @@ module logic_fetcher(input wire clk_in,
                         x_out <= 0;
                         y_out <= 0;
                         stall_out <= 1;
+                        done_out <= 1;
                     end else if (last_x_in_row) begin
                         state <= ROW_START_0;
                         x_out <= 0;
@@ -187,7 +242,13 @@ endmodule
 `default_nettype wire
 
 `default_nettype none
-module logic_rule(input wire clk_in, stall_in,
+/**
+ * logic_rule - computes next board state.
+ * 
+ * Timing:
+ *  - Single pipleline stage with stall signal.
+ */
+module logic_rule(input wire clk_in, stall_in, done_in,
                   input wire[LOG_BOARD_SIZE-1:0] x_in,
                   input wire[LOG_BOARD_SIZE-1:0] y_in,
                   input wire[WINDOW_WIDTH-1:0] window_in[2:0],
@@ -196,7 +257,7 @@ module logic_rule(input wire clk_in, stall_in,
                   input wire cursor_click_in,
                   input wire update_in,
                   output logic[NUM_PE-1:0] state_out,
-                  output logic stall_out);
+                  output logic stall_out, done_out);
     logic[3:0] neighbor_cnt[NUM_PE-1:0];
     logic[NUM_PE-1:0] old_state;
     logic[NUM_PE-1:0] next_state;
@@ -234,13 +295,21 @@ module logic_rule(input wire clk_in, stall_in,
                 state_out[i] <= next_state[i];
         end
         stall_out <= stall_in;
+        done_out <= done_in;
     end
 endmodule
+`default_nettype wire
 
 `default_nettype none
-module logic_writeback(input wire clk_in, stall_in, start_in,
+/**
+ * logic_writeback - buffers next word and sends it out.
+ *
+ * Timing:
+ *  - Single pipeline stage.
+ */
+module logic_writeback(input wire clk_in, stall_in, start_in, done_in,
                        input wire[NUM_PE-1:0] next_state_in,
-                       output logic wr_en_out,
+                       output logic wr_en_out, done_out,
                        output logic[LOG_MAX_ADDR-1:0] addr_w_out,
                        output logic[WORD_SIZE-1:0] data_w_out);
     logic[LOG_WORD_SIZE-1:0] buffer_idx;
@@ -260,6 +329,7 @@ module logic_writeback(input wire clk_in, stall_in, start_in,
                 addr_w_out <= addr_w_out + 1;
             end
         end 
+        done_out <= done_in;
     end
 endmodule
 `default_nettype wire
