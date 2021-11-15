@@ -252,14 +252,14 @@ module logic_writeback(input wire clk_in, stall_in, start_in,
             data_w_out <= 0;
         end else if (!stall_in) begin
             buffer_idx <= buffer_idx - NUM_PE;
-            data_w_out <= {data_w_out[WORD_SIZE-3:0], next_state_in};
-            if (buffer_idx < WORD_SIZE - NUM_PE) begin
+            data_w_out <= {data_w_out[WORD_SIZE-NUM_PE-1:0], next_state_in};
+            if (buffer_idx > 0) begin
                 wr_en_out <= 0;
             end else begin
                 wr_en_out <= 1;
                 addr_w_out <= addr_w_out + 1;
             end
-        end
+        end 
     end
 endmodule
 `default_nettype wire
