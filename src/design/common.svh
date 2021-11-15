@@ -34,6 +34,8 @@ parameter LOG_SCREEN_HEIGHT = $clog2(SCREEN_HEIGHT);
 typedef logic[LOG_MAX_ADDR-1:0] addr_t;
 typedef logic[WORD_SIZE-1:0] data_t;
 
+typedef logic[WINDOW_WIDTH-1:0] window_row_t;
+
 typedef logic[LOG_MAX_SPEED-1:0] speed_t;
 
 typedef logic[LOG_BOARD_SIZE-1:0] pos_t;
