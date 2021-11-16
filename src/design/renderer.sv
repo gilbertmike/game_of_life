@@ -99,3 +99,57 @@ module renderer(input wire clk_in, start_in,
 endmodule
 `default_nettype wire
 
+`default_nettype none
+/**
+ * cursor_render - renders a highlighted square.
+ * 
+ * Assumptions:
+ *  - view starts at pixel (0, 0).
+ *  - cursor_x_in and cursor_y_in given in board coordinate.
+ *
+ * Output:
+ *  - returns white when pixel is at border of the cell the cursor is on.
+ *  - black otherwise.
+ *
+ * Timing:
+ *  - Stage one pipeline.
+ */
+module cursor_render(input wire clk_in,
+                     input wire[10:0] hcount_in,
+                     input wire[9:0] vcount_in,
+                     input wire[LOG_BOARD_SIZE-1:0] view_x_in,
+                     input wire[LOG_BOARD_SIZE-1:0] view_y_in,
+                     input wire[LOG_BOARD_SIZE-1:0] cursor_x_in,
+                     input wire[LOG_BOARD_SIZE-1:0] cursor_y_in,
+                     output logic[11:0] pix_out);
+    localparam CELL_SIZE = BOARD_SIZE / VIEW_SIZE;
+
+    pos_t cursor_x_in_view, cursor_y_in_view;
+    logic[10:0] cursor_x_in_pix;
+    logic[9:0] cursor_y_in_pix;
+    logic in_x_range, in_y_range, at_x_edge, at_y_edge;
+    always_comb begin
+        cursor_x_in_view = cursor_x_in - view_x_in;
+        cursor_y_in_view = cursor_y_in - view_y_in;
+        cursor_x_in_pix = cursor_x_in_view >> CELL_SIZE;
+        cursor_y_in_pix = cursor_y_in_view >> CELL_SIZE;
+
+        in_x_range = (hcount >= cursor_x_in_view)
+                        && (hcount <= cursor_x_in_view + CELL_SIZE);
+        in_y_range = (vcount >= cursor_y_in_view)
+                        && (vcount <= cursor_y_in_view + CELL_SIZE);
+        at_x_edge = (hcount == cursor_x_in_view)
+                        || (hcount == cursor_x_in_view + CELL_SIZE);
+        at_y_edge = (hcount == cursor_y_in_view)
+                        || (vcount == cursor_y_in_view + CELL_SIZE);
+    end
+
+    always_ff @(posedge clk_in) begin
+        if ((at_x_edge && in_y_range) || (at_y_edge && in_x_range))
+            pix_out <= 12'b1;
+        else
+            pix_out <= 12'b0;
+    end
+endmodule
+`default_nettype wire
+
