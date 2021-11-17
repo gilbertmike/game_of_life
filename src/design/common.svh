@@ -25,9 +25,11 @@ parameter MAX_SPEED = 2**LOG_MAX_SPEED;
 
 // Drawing parameters
 parameter SCREEN_WIDTH = 1024;
-parameter SCREEN_HEIGHT = 768;
+parameter SCREEN_HEIGHT = 512;
 parameter LOG_SCREEN_WIDTH = $clog2(SCREEN_WIDTH);
 parameter LOG_SCREEN_HEIGHT = $clog2(SCREEN_HEIGHT);
+parameter LOG_CELL_SIZE = LOG_SCREEN_HEIGHT - LOG_VIEW_SIZE;
+parameter CELL_SIZE = 2**LOG_CELL_SIZE;
 
 
 // Commonly used data types
