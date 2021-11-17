@@ -3,3 +3,6 @@ vivado/
 vivado*
 .Xil/
 
+# Vivado IP files
+src/ip/*
+!src/ip/*/*.xci

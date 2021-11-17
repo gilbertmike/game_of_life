@@ -5,10 +5,13 @@
 parameter LOG_WORD_SIZE = 4;
 parameter LOG_BOARD_SIZE = 10;
 parameter LOG_VIEW_SIZE = 8;
-parameter WINDOW_WIDTH = 3;
+parameter LOG_NUM_PE = 0;
+parameter NUM_PE = 2**LOG_NUM_PE;
+parameter WINDOW_WIDTH = 2 + NUM_PE;
 
 parameter WORD_SIZE = 2**LOG_WORD_SIZE;
 parameter LOG_MAX_ADDR = LOG_BOARD_SIZE*2 - LOG_WORD_SIZE;
+parameter MAX_ADDR = 2**LOG_MAX_ADDR;
 parameter BOARD_SIZE = 2**LOG_BOARD_SIZE;
 parameter VIEW_SIZE = 2**LOG_VIEW_SIZE;
 
@@ -32,6 +35,8 @@ parameter CELL_SIZE = 2**LOG_CELL_SIZE;
 // Commonly used data types
 typedef logic[LOG_MAX_ADDR-1:0] addr_t;
 typedef logic[WORD_SIZE-1:0] data_t;
+
+typedef logic[WINDOW_WIDTH-1:0] window_row_t;
 
 typedef logic[LOG_MAX_SPEED-1:0] speed_t;
 
