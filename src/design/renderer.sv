@@ -123,6 +123,7 @@ module cursor_render(input wire clk_in,
                      input wire[LOG_BOARD_SIZE-1:0] cursor_y_in,
                      output logic[11:0] pix_out);
     localparam CELL_SIZE = BOARD_SIZE / VIEW_SIZE;
+    localparam LOG_CELL_SIZE = LOG_BOARD_SIZE - LOG_VIEW_SIZE;
 
     pos_t cursor_x_in_view, cursor_y_in_view;
     logic[10:0] cursor_x_in_pix;
@@ -131,22 +132,22 @@ module cursor_render(input wire clk_in,
     always_comb begin
         cursor_x_in_view = cursor_x_in - view_x_in;
         cursor_y_in_view = cursor_y_in - view_y_in;
-        cursor_x_in_pix = cursor_x_in_view >> CELL_SIZE;
-        cursor_y_in_pix = cursor_y_in_view >> CELL_SIZE;
+        cursor_x_in_pix = cursor_x_in_view << LOG_CELL_SIZE;
+        cursor_y_in_pix = cursor_y_in_view << LOG_CELL_SIZE;
 
-        in_x_range = (hcount >= cursor_x_in_view)
-                        && (hcount <= cursor_x_in_view + CELL_SIZE);
-        in_y_range = (vcount >= cursor_y_in_view)
-                        && (vcount <= cursor_y_in_view + CELL_SIZE);
-        at_x_edge = (hcount == cursor_x_in_view)
-                        || (hcount == cursor_x_in_view + CELL_SIZE);
-        at_y_edge = (hcount == cursor_y_in_view)
-                        || (vcount == cursor_y_in_view + CELL_SIZE);
+        in_x_range = (hcount_in >= cursor_x_in_pix)
+                        && (hcount_in <= cursor_x_in_pix + CELL_SIZE-1);
+        in_y_range = (vcount_in >= cursor_y_in_pix)
+                        && (vcount_in <= cursor_y_in_pix + CELL_SIZE-1);
+        at_x_edge = (hcount_in == cursor_x_in_pix)
+                        || (hcount_in == cursor_x_in_pix + CELL_SIZE-1);
+        at_y_edge = (vcount_in == cursor_y_in_pix)
+                        || (vcount_in == cursor_y_in_pix + CELL_SIZE-1);
     end
 
     always_ff @(posedge clk_in) begin
         if ((at_x_edge && in_y_range) || (at_y_edge && in_x_range))
-            pix_out <= 12'b1;
+            pix_out <= 12'hFFF;
         else
             pix_out <= 12'b0;
     end
