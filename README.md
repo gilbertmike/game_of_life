@@ -23,3 +23,8 @@ When committing, make sure to:
 ## Authors
 Fiona Lin
 Michael Gilbert
+
+## Attributions
+Circle of Life taken from the Internet Archive: https://archive.org/details/tvtunes_21180
+Processed with Audacity.
+
