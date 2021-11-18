@@ -189,12 +189,13 @@ module cell_render(input wire clk_in,
                    output logic[11:0] pix_out);
        
         always_ff @(posedge clk_in) begin
-            if (hcount_in < VIEW_SIZE && vcount_in < VIEW_SIZE) begin
+            if ((hcount_in < VIEW_SIZE*CELL_SIZE) && (vcount_in < VIEW_SIZE*CELL_SIZE)) begin
                 if (is_alive_in)
                    pix_out <= 12'hFFF;
                 else
                    pix_out <= 12'h0;
-            end
+            end else
+                pix_out <= 12'h0;
         end         
    
 endmodule

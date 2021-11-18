@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+`include "common.svh"
+
 module cell_render_tb;
 
     //initialize input
@@ -23,21 +25,19 @@ module cell_render_tb;
     //initialize input
     initial begin
         clk = 0;
-        is_alive = 1;
+        is_alive = 0;
         hcount = 0;
         vcount = 0;
         pix = 0;
         #10;
-        for (hcount = 0; hcount < SCREEN_WIDTH; hcount = hcount + 1) #10;
-        if ((hcount == SCREEN_WIDTH) && (vcount < SCREEN_HEIGHT)) begin
-            hcount = 0;
-            vcount = vcount + 1;
+        for (hcount = 0; hcount < SCREEN_WIDTH; hcount = hcount + 1) begin
+            #10;
+            if ((hcount == SCREEN_WIDTH) && (vcount < SCREEN_HEIGHT)) begin
+                hcount = 0;
+                vcount = vcount + 1;
+            end
+            is_alive = ~is_alive;
         end
-        #10;
-        is_alive = 1;
-        #20;
-        is_alive = 0;
-        #30;
         
     end
     
