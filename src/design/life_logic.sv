@@ -34,15 +34,15 @@ module life_logic(input wire clk_in,
     end
 
     logic fetch_stall, fetch_done;
-    pos_t fetch_x, fetch_x;
-    window_row_t window[2:0];
-    logic_fetcher fetch(.clk_in(clk), .start_in(start_in), .data_in(data_r_in),
-                        .window_out(window), .addr_out(addr_r_out), .x_out(x),
-                        .y_out(y), .stall_out(stall), .done_out(fetch_done));
+    pos_t fetch_x, fetch_y;
+    window_row_t fetch_window[2:0];
+    logic_fetcher fetch(.clk_in(clk_in), .start_in(start_in), .data_in(data_r_in),
+                        .window_out(fetch_window), .addr_out(addr_r_out), .x_out(fetch_x),
+                        .y_out(fetch_y), .stall_out(fetch_stall), .done_out(fetch_done));
 
     logic rule_stall, rule_done;
     logic[NUM_PE-1:0] rule_state;
-    logic_rule rule(.clk_in(clk), .stall_in(fetch_stall), .x_in(fetch_x),
+    logic_rule rule(.clk_in(clk_in), .stall_in(fetch_stall), .x_in(fetch_x),
                     .y_in(fetch_y), .window_in(fetch_window),
                     .done_in(fetch_done), .cursor_x_in(cursor_x_in),
                     .cursor_y_in(cursor_y_in),
@@ -57,7 +57,7 @@ module life_logic(input wire clk_in,
         wb_start0 <= start_in;
         wb_start <= wb_start0;
     end
-    logic_writeback wb(.clk_in(clk), .stall_in(rule_stall),
+    logic_writeback wb(.clk_in(clk_in), .stall_in(rule_stall),
                        .done_in(rule_done), .start_in(wb_start),
                        .next_state_in(rule_state), .wr_en_out(wr_en_out),
                        .addr_w_out(addr_w_out), .data_w_out(data_w_out),
