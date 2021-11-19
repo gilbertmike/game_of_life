@@ -74,7 +74,7 @@ module renderer(input wire clk_130mhz, start_in,
     // Third stage pipeline --------------------------------------------------
 
     always_ff @(posedge clk_130mhz) begin
-        pix_out <= blank ? 0 : cell_pix + cursor_pix;
+        pix_out <= blank1 ? 0 : cell_pix + cursor_pix;
         {hsync_out, vsync_out} <= {~hsync1, ~vsync1};
         done_out <= (hsync1 == SCREEN_WIDTH) && (vsync1 == SCREEN_HEIGHT);
     end
