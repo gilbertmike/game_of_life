@@ -17,8 +17,8 @@ module audio(input wire clk_100mhz,
              input wire miso_in,
              output logic cs_out, mosi_out, sclk_out,
              output logic aud_sd_out, aud_pwm_out);
-    // TODO: set up 25 MHz clock
     logic clk_25mhz;
+    clk_wiz_25mhz(.clk_in1(clk_100mhz), .clk_out1(clk_25mhz));
 
     // TODO: set up address generation to play music.
     logic rd, byte_available, ready_for_next, ready;
