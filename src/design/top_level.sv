@@ -4,8 +4,8 @@ module top_level(input wire clk_100mhz,
                  input wire[15:0] sw,
                  output logic[3:0] vga_r, vga_g, vga_b,
                  output logic vga_hs, vga_vs);
-    // TODO: setup clk wiz to generate 130mhz
     logic clk_130mhz;
+    clk_wiz_130mhz(.clk_in1(clk_100mhz), .clk_out1(clk_130mhz));
 
     pos_t cursor_x, cursor_y, view_x, view_y;
     speed_t speed;

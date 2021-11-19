@@ -15,8 +15,19 @@ module renderer(input wire clk_130mhz, start_in,
                 output logic done_out,
                 output logic[11:0] pix_out,
                 output logic vsync_out, hsync_out);
-    // TODO: setup clk wiz to generate 65mhz
     logic clk_65mhz;
+    clk_wiz_65mhz(.clk_in1(clk_130mhz), .clk_out1(clk_65mhz));
+
+    //initiate xvga instance
+    logic [10:0] hcount0;
+    logic [9:0] vcount0;
+    logic hsync0, vsync0, blank0;
+    xvga xvga1(.clk_65mhz(clk_65mhz),
+           .hcount_out(hcount0),
+           .vcount_out(vcount0),
+           .vsync_out(vsync0),
+           .hsync_out(hsync0),
+           .blank_out(blank0));
 
     // Sample user input so no update happens within a frame
     pos_t view_x, view_y, cursor_x, cursor_y;
@@ -29,16 +40,6 @@ module renderer(input wire clk_130mhz, start_in,
         end
     end
 
-    //initiate xvga instance
-    logic [10:0] hcount0;
-    logic [9:0] vcount0;
-    logic hsync0, vsync0, blank0;
-    xvga xvga1(.clk_65mhz(clk_65mhz),
-           .hcount_out(hcount),
-           .vcount_out(vcount),
-           .vsync_out(vsync),
-           .hsync_out(hsync),
-           .blank_out(blank));
 
     // First stage pipeline (counted from hcount, vcount) --------------------
 
@@ -72,7 +73,7 @@ module renderer(input wire clk_130mhz, start_in,
 
     // Third stage pipeline --------------------------------------------------
 
-    always_ff @(posedge clk_in) begin
+    always_ff @(posedge clk_130mhz) begin
         pix_out <= cell_pix + cursor_pix;
         {hsync_out, vsync_out} <= {hsync1, vsync1};
         done_out <= (hsync1 == SCREEN_WIDTH) && (vsync1 == SCREEN_HEIGHT);
