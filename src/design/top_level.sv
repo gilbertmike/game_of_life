@@ -10,13 +10,16 @@ module top_level(input wire clk_100mhz,
     pos_t cursor_x, cursor_y, view_x, view_y;
     speed_t speed;
     logic click;
-    user_interface ui(.clk_in(clk_130mhz), .btnd_in(btnd), .btnc_in(btnc),
-                      .btnl_in(btnl), .btnr_in(btnr), .btnu_in(btnu),
-                      .sw_in(sw), .speed_out(speed), .cursor_x_out(cursor_x),
-                      .cursor_y_out(cursor_y), .click_out(click),
-                      .view_x_out(view_x), .view_y_out(view_y));
-    ila_0(.clk(clk_130mhz), .probe0(cursor_x), .probe1(cursor_y), .probe2(view_x),
-          .probe3(view_y), .probe4({btnu, btnd, btnc, btnl, btnr}));
+    user_interface ui(
+        .clk_in(clk_130mhz), .rst_in(sw[15]), .btnd_in(btnd),
+        .btnc_in(btnc), .btnl_in(btnl), .btnr_in(btnr), .btnu_in(btnu),
+        .sw_in(sw), .speed_out(speed), .cursor_x_out(cursor_x),
+        .cursor_y_out(cursor_y), .click_out(click), .view_x_out(view_x),
+        .view_y_out(view_y));
+
+    ila_0(.clk(clk_130mhz), .probe0(cursor_x), .probe1(cursor_y),
+          .probe2(view_x), .probe3(view_y),
+          .probe4({btnu, btnd, btnc, btnl, btnr}), .probe5(speed));
 
     logic logic_done, render_done;
     logic logic_start, render_start, buf_swap;
