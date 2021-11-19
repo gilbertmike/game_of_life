@@ -20,10 +20,11 @@ module audio(input wire clk_100mhz,
     logic clk_25mhz;
     clk_wiz_25mhz(.clk_in1(clk_100mhz), .clk_out1(clk_25mhz));
 
-    // TODO: set up address generation to play music.
+    // TODO
+
     logic rd, byte_available, ready_for_next, ready;
     logic[31:0] addr;
-    sample_t sample;
+    sample_t sd_sample;
     sd_controller sd(.cs(cs_out), .mosi(mosi_out), .miso(miso_in),
                      .sclk(sclk_out), .rd(rd), .byte_available(byte_available),
                      .wr(1'b0), .din(7'b0),
@@ -31,9 +32,15 @@ module audio(input wire clk_100mhz,
                      .ready(ready), .address(addr), .clk(clk_25mhz),
                      .status(5'b0));
 
+    sample_t song_sample;
+    logic song_rd, song_full, song_empty;
+    fifo_song(.clk(clk_100mhz), .srst(rst_in), .din(sample), .full(song_full),
+              .wr_en(byte_available), .dout(song_sample), .rd_en(song_rd),
+              .empty(song_empty));
+
     logic pwm;
-    audio_pwm pwm(.clk_100mhz(clk_100mhz), .reset_in(rst_in),
-                  .music_data(sample), .pwm_out(pwm));
+    audio_pwm(.clk_100mhz(clk_100mhz), .reset_in(rst_in),
+              .music_data(song_sample), .pwm_out(pwm));
 
     assign aud_pwm_out = pwm ? 1'bZ : 1'b0;
 endmodule
@@ -47,21 +54,21 @@ endmodule
  * 6.111 Final Project SD card starter tutorial by Grace Quaratiello.
  */
 module audio_pwm(input wire clk_100mhz,
-                 input wire reset_in
+                 input wire reset_in,
                  input wire[7:0] music_data,
                  output logic pwm_out);
     // counts up to 255 clock cycles per pwm period
     reg [7:0] pwm_counter = 8'd0; 
 
-    always @(posedge clk) begin
-        if(reset) begin
+    always @(posedge clk_100mhz) begin
+        if(reset_in) begin
             pwm_counter <= 0;
             pwm_out <= 0;
         end
         else begin
             pwm_counter <= pwm_counter + 1;
             
-            if(pwm_counter >= music_data) PWM_out <= 0;
+            if(pwm_counter >= music_data) pwm_out <= 0;
             else pwm_out <= 1;
         end
     end

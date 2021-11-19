@@ -15,6 +15,8 @@ parameter MAX_ADDR = 2**LOG_MAX_ADDR;
 parameter BOARD_SIZE = 2**LOG_BOARD_SIZE;
 parameter VIEW_SIZE = 2**LOG_VIEW_SIZE;
 
+parameter SD_CARD_BLOCK = 512;
+
 
 // User input parameters
 parameter LOG_MAX_SPEED = 3;
@@ -30,6 +32,11 @@ parameter LOG_SCREEN_WIDTH = $clog2(SCREEN_WIDTH);
 parameter LOG_SCREEN_HEIGHT = $clog2(SCREEN_HEIGHT);
 parameter LOG_CELL_SIZE = LOG_SCREEN_HEIGHT - LOG_VIEW_SIZE;
 parameter CELL_SIZE = 2**LOG_CELL_SIZE;
+
+
+// Audio parameters
+parameter SONG_START_ADDR = 512;
+parameter SONG_END_ADDR = 4096;
 
 
 // Commonly used data types
