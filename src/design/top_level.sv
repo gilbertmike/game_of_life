@@ -16,7 +16,7 @@ module top_level(input wire clk_100mhz,
                       .cursor_y_out(cursor_y), .click_out(click),
                       .view_x_out(view_x), .view_y_out(view_y));
     ila_0(.clk(clk_130mhz), .probe0(cursor_x), .probe1(cursor_y), .probe2(view_x),
-          .probe3(view_y), .probe4({btnu, btnd, btnc, btnl, btnr}));
+          .probe3(view_y), .probe4({btnu, btnd, btnc, btnl, btnr}), .probe5(0));
 
     logic logic_done, render_done;
     logic logic_start, render_start, buf_swap;
