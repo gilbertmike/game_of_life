@@ -32,7 +32,7 @@ module renderer(input wire clk_130mhz, start_in,
     // Sample user input so no update happens within a frame
     pos_t view_x, view_y, cursor_x, cursor_y;
     always_ff @(posedge clk_130mhz) begin
-        if (!vsync0) begin
+        if (vsync0) begin
             view_x <= view_x_in;
             view_y <= view_y_in;
             cursor_x <= cursor_x_in;
@@ -74,8 +74,8 @@ module renderer(input wire clk_130mhz, start_in,
     // Third stage pipeline --------------------------------------------------
 
     always_ff @(posedge clk_130mhz) begin
-        pix_out <= cell_pix + cursor_pix;
-        {hsync_out, vsync_out} <= {hsync1, vsync1};
+        pix_out <= blank ? 0 : cell_pix + cursor_pix;
+        {hsync_out, vsync_out} <= {~hsync1, ~vsync1};
         done_out <= (hsync1 == SCREEN_WIDTH) && (vsync1 == SCREEN_HEIGHT);
     end
 endmodule
