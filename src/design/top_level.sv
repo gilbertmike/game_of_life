@@ -49,7 +49,7 @@ module top_level(input wire clk_100mhz,
         .cursor_x_in(cursor_x), .cursor_y_in(cursor_y),
         .cursor_click_in(click), .data_r_in(logic_data_r),
         .addr_r_out(logic_addr_r), .addr_w_out(logic_addr_w),
-        .wr_en_out(logic_wr_en), .data_out(logic_data_w),
+        .wr_en_out(logic_wr_en), .data_w_out(logic_data_w),
         .done_out(logic_done));
 endmodule
 `default_nettype wire
