@@ -16,7 +16,7 @@ module user_interface#(parameter LOG_DEBOUNCE_COUNT = 20,
     debounce#(LOG_DEBOUNCE_COUNT) btn_debouncers [4:0] (
         .clk_in(clk_in), .rst_in(rst_in),
         .noisy_in({btnd_in, btnc_in, btnu_in, btnl_in, btnr_in}),
-        .clean_out({btnd, click_out, btnu, btnl, btnr}));
+        .clean_out({btnd_deb, click_out, btnu_deb, btnl_deb, btnr_deb}));
 
     logic btnd, btnu, btnl, btnr;
     btn_pwd#(LOG_WAIT_COUNT) btn_pwds [3:0] (
@@ -106,8 +106,8 @@ module btn_pwd#(parameter LOG_WAIT_COUNT = 26)
             move_out <= 0;
             count <= 0;
         end else if (btn_in) begin
-            move_out <= count == 0 || count == WAIT_COUNT;
-            count <= count == WAIT_COUNT ? count : count + 1;
+            move_out <= count == 0;
+            count <= count + 1;
         end
     end
 endmodule
