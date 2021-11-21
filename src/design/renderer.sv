@@ -4,10 +4,14 @@
 /**
  * renderer - renders the game screen.
  *
+ * Output:
+ *  - Standard VGA output.
+ *  - During blank period, done_out is asserted.
+ *
  * Timing:
  *  - Three stage pipeline.
  */
-module renderer(input wire clk_130mhz, start_in,
+module renderer(input wire clk_130mhz, rst_in,
                 input wire[WORD_SIZE-1:0] data_in,
                 input wire[LOG_BOARD_SIZE-1:0] view_x_in, view_y_in,
                 input wire[LOG_BOARD_SIZE-1:0] cursor_x_in, cursor_y_in,
@@ -16,23 +20,25 @@ module renderer(input wire clk_130mhz, start_in,
                 output logic[11:0] pix_out,
                 output logic vsync_out, hsync_out);
     logic clk_65mhz;
-    clk_wiz_65mhz(.clk_in1(clk_130mhz), .clk_out1(clk_65mhz));
+//    clk_wiz_65mhz clk_65(.clk_in1(clk_130mhz), .clk_out1(clk_65mhz));
+    assign clk_65mhz = clk_130mhz;
 
     //initiate xvga instance
     logic [10:0] hcount0;
     logic [9:0] vcount0;
     logic hsync0, vsync0, blank0;
-    xvga xvga1(.clk_65mhz(clk_65mhz),
-           .hcount_out(hcount0),
-           .vcount_out(vcount0),
-           .vsync_out(vsync0),
-           .hsync_out(hsync0),
-           .blank_out(blank0));
+    xvga xvga1(
+        .clk_65mhz(clk_65mhz), .rst_in(rst_in),
+        .hcount_out(hcount0),
+        .vcount_out(vcount0),
+        .vsync_out(vsync0),
+        .hsync_out(hsync0),
+        .blank_out(blank0));
 
     // Sample user input so no update happens within a frame
     pos_t view_x, view_y, cursor_x, cursor_y;
     always_ff @(posedge clk_130mhz) begin
-        if (vsync0) begin
+        if (hcount0 == 0 && vcount0 == 0) begin
             view_x <= view_x_in;
             view_y <= view_y_in;
             cursor_x <= cursor_x_in;
@@ -44,7 +50,7 @@ module renderer(input wire clk_130mhz, start_in,
     // First stage pipeline (counted from hcount, vcount) --------------------
 
     logic is_alive;
-    render_fetch fetch(.clk_130mhz(clk_130mhz), .start_in(start_in),
+    render_fetch fetch(.clk_130mhz(clk_130mhz),
                        .hcount_in(hcount0), .vcount_in(vcount0),
                        .view_x_in(view_x), .view_y_in(view_y),
                        .data_r_in(data_in), .addr_r_out(addr_r_out),
@@ -62,26 +68,32 @@ module renderer(input wire clk_130mhz, start_in,
     end
 
     logic[11:0] cell_pix;
-    cell_render(.clk_130mhz(clk_130mhz), .is_alive_in(is_alive),
-                .hcount_in(hcount1), .vcount_in(vcount1), .pix_out(cell_pix));
+    cell_render cell_r(.clk_130mhz(clk_130mhz), .is_alive_in(is_alive),
+                       .hcount_in(hcount1), .vcount_in(vcount1),
+                       .pix_out(cell_pix));
 
     logic[11:0] cursor_pix;
-    cursor_render(.clk_130mhz(clk_130mhz), .hcount_in(hcount1),
-                  .vcount_in(vcount1), .view_x_in(view_x),
-                  .view_y_in(view_y), .cursor_x_in(cursor_x),
-                  .cursor_y_in(cursor_y), .pix_out(cursor_pix));
+    cursor_render cursor_r(.clk_130mhz(clk_130mhz), .hcount_in(hcount1),
+                           .vcount_in(vcount1), .view_x_in(view_x),
+                           .view_y_in(view_y), .cursor_x_in(cursor_x),
+                           .cursor_y_in(cursor_y), .pix_out(cursor_pix));
 
     // Third stage pipeline --------------------------------------------------
 
     always_ff @(posedge clk_130mhz) begin
-        pix_out <= blank1 ? 0 : cell_pix + cursor_pix;
+        if (rst_in) begin
+            pix_out <= 0;
+            done_out <= 1;
+        end else begin
+            pix_out <= blank1 ? 0 : cell_pix + cursor_pix;
+            done_out <= (vcount1 >= SCREEN_HEIGHT);
+        end
         {hsync_out, vsync_out} <= {~hsync1, ~vsync1};
-        done_out <= (hsync1 == SCREEN_WIDTH) && (vsync1 == SCREEN_HEIGHT);
     end
 endmodule
 
 //xvga module copied from lab 3: change parameters!
-module xvga(input wire clk_65mhz,
+module xvga(input wire clk_65mhz, rst_in,
             output logic [10:0] hcount_out,    // pixel number on current line
             output logic [9:0] vcount_out,     // line number
             output logic vsync_out, hsync_out, blank_out);
@@ -123,20 +135,30 @@ module xvga(input wire clk_65mhz,
     assign next_hblank = hreset ? 0 : hblankon ? 1 : hblank;
     assign next_vblank = vreset ? 0 : vblankon ? 1 : vblank;
     always_ff @(posedge clk_65mhz) begin
-        hcount_out <= hreset ? 0 : hcount_out + 1;
-        hblank <= next_hblank;
-        hsync_out <= hsyncon ? 0 : hsyncoff ? 1 : hsync_out;  // active low
-
-        vcount_out <= hreset ? (vreset ? 0 : vcount_out + 1) : vcount_out;
-        vblank <= next_vblank;
-        vsync_out <= vsyncon ? 0 : vsyncoff ? 1 : vsync_out;  // active low
-
-        blank_out <= next_vblank | (next_hblank & ~hreset);
+        if (rst_in) begin
+            hcount_out <= 0;
+            hblank <= 0;
+            hsync_out <= 0;
+            vcount_out <= 0;
+            vblank <= 0;
+            vsync_out <= 0;
+            blank_out <= 0;
+        end else begin
+            hcount_out <= hreset ? 0 : hcount_out + 1;
+            hblank <= next_hblank;
+            hsync_out <= hsyncon ? 0 : hsyncoff ? 1 : hsync_out;  // active low
+    
+            vcount_out <= hreset ? (vreset ? 0 : vcount_out + 1) : vcount_out;
+            vblank <= next_vblank;
+            vsync_out <= vsyncon ? 0 : vsyncoff ? 1 : vsync_out;  // active low
+    
+            blank_out <= next_vblank | (next_hblank & ~hreset);
+        end
     end
 endmodule
 
 //render_fetch module, to fetch info on squares within view window
-module render_fetch (input wire clk_130mhz, start_in,
+module render_fetch (input wire clk_130mhz,
                      input wire[10:0] hcount_in,
                      input wire[9:0] vcount_in,
                      input wire[LOG_BOARD_SIZE-1:0] view_x_in, view_y_in,
@@ -159,15 +181,10 @@ module render_fetch (input wire clk_130mhz, start_in,
     end
 
     always_ff @(posedge clk_130mhz) begin
-        if (start_in) begin
-            addr_r_out <= 0;
-            is_alive_out <= 0;
-        end else begin
-            addr_r_out <= board_cell_y * WORDS_PER_ROW
-                + board_cell_x >> LOG_WORD_SIZE;
-            is_alive_out <=
-                data_r_in[WORD_SIZE-1-board_cell_x[LOG_WORD_SIZE-1:0]];
-        end
+        addr_r_out <= board_cell_y * WORDS_PER_ROW
+            + board_cell_x >> LOG_WORD_SIZE;
+        is_alive_out <=
+            data_r_in[WORD_SIZE-1-board_cell_x[LOG_WORD_SIZE-1:0]];
     end
     
 endmodule

@@ -9,6 +9,7 @@ module double_buffer(input wire clk_in,
                      input wire[LOG_MAX_ADDR-1:0] logic_addr_w,
                      input wire[WORD_SIZE-1:0] logic_data_w,
                      input wire logic_wr_en,
+                     output logic ready_out,
                      output logic[WORD_SIZE-1:0] render_data_r,
                      output logic[WORD_SIZE-1:0] logic_data_r);
     addr_t buf0_addra;
@@ -36,10 +37,12 @@ module double_buffer(input wire clk_in,
     // buffer_toggle decides if logic writes to buf0 or buf1
     logic buffer_toggle;
     always_ff @(posedge clk_in) begin
-        if (rst_in)
+        if (rst_in) begin
             buffer_toggle <= 0;
-        else
+        end else begin
             buffer_toggle <= swap_in ? !buffer_toggle : buffer_toggle;
+            ready_out <= 1;
+        end
     end
 
     always_comb begin

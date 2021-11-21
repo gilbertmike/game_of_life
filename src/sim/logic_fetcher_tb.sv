@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+`include "common.svh"
+
 module logic_fetcher_tb;
     logic clk;
     always #5 clk = !clk;

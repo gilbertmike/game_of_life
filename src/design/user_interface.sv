@@ -38,7 +38,6 @@ module user_interface#(parameter LOG_DEBOUNCE_COUNT = 20,
             cursor_y_out <= BOARD_SIZE / 2;
             view_x_out <= (BOARD_SIZE - VIEW_SIZE) / 2;
             view_y_out <= (BOARD_SIZE - VIEW_SIZE) / 2;
-            click_out <= 0;
         end else begin
             if (btnd) begin
                 cursor_y_out <= cursor_y_out + 1;

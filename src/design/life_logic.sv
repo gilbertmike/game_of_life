@@ -10,22 +10,26 @@
  *  - Check done_out to tell if next state is computed completely.
  */
 module life_logic(input wire clk_in,
+                  input wire rst_in,
                   input wire start_in,
                   input wire[LOG_MAX_SPEED-1:0] speed_in,
-                  input wire[LOG_WORD_SIZE-1:0] data_r_in,
+                  input wire[WORD_SIZE-1:0] data_r_in,
                   input wire[LOG_BOARD_SIZE-1:0] cursor_x_in,
                   input wire[LOG_BOARD_SIZE-1:0] cursor_y_in,
                   input wire cursor_click_in,
                   output logic[LOG_MAX_ADDR-1:0] addr_r_out,
                   output logic[LOG_MAX_ADDR-1:0] addr_w_out,
-                  output logic[LOG_WORD_SIZE-1:0] data_w_out,
+                  output logic[WORD_SIZE-1:0] data_w_out,
                   output logic wr_en_out,
                   output logic done_out);
     // Central game logic FSM
     logic update;
     logic[7:0] counter;
     always_ff @(posedge clk_in) begin
-        if (start_in) begin
+        if (rst_in) begin
+            update <= 1'b0;
+            counter <= 0;
+        end else if (start_in) begin
             update <= counter >= 8'hFF - speed_in ? 1'b1 : 1'b0;
             counter <= counter + speed_in;
         end else begin
@@ -57,11 +61,20 @@ module life_logic(input wire clk_in,
         wb_start0 <= start_in;
         wb_start <= wb_start0;
     end
+    logic wb_done, rst_done;
     logic_writeback wb(.clk_in(clk_in), .stall_in(rule_stall),
                        .done_in(rule_done), .start_in(wb_start),
                        .next_state_in(rule_state), .wr_en_out(wr_en_out),
                        .addr_w_out(addr_w_out), .data_w_out(data_w_out),
-                       .done_out(done_out));
+                       .done_out(wb_done));
+    always_ff @(posedge clk_in) begin
+        if (rst_in) begin
+            rst_done <= 1'b1;
+        end else if (start_in) begin
+            rst_done <= 1'b0;
+        end
+    end
+    assign done_out = rst_done || wb_done;
 endmodule
 `default_nettype wire
 
@@ -87,7 +100,7 @@ module logic_fetcher(input wire clk_in,
                      output logic stall_out,
                      output logic done_out);
     localparam WORDS_PER_ROW = BOARD_SIZE / WORD_SIZE;
-    localparam STRIDE = WINDOW_WIDTH-2;
+    localparam STRIDE = NUM_PE;
 
     enum logic[1:0] { DONE, ROW_START_0, ROW_START_1, STEADY } state;
     enum logic[1:0] { IDLE, FETCH_ROW_0, FETCH_ROW_1, FETCH_ROW_2 } row_state;
@@ -96,7 +109,7 @@ module logic_fetcher(input wire clk_in,
 
     // control state machine
     logic last_x_in_row, last_y_in_col;
-    assign last_x_in_row = x_out == BOARD_SIZE-1;
+    assign last_x_in_row = x_out == BOARD_SIZE-NUM_PE;
     assign last_y_in_col = y_out == BOARD_SIZE-1;
     always_ff @(posedge clk_in) begin
         if (start_in) begin
@@ -145,7 +158,7 @@ module logic_fetcher(input wire clk_in,
     always_ff @(posedge clk_in) begin
         if (start_in) begin
             row_state <= FETCH_ROW_0;
-            addr_out <= 0;
+            addr_out <= WORDS_PER_ROW-1;
         end else begin
             case (row_state)
                 IDLE: if (last_x_in_word) row_state <= FETCH_ROW_0;
@@ -161,16 +174,16 @@ module logic_fetcher(input wire clk_in,
                 FETCH_ROW_2: begin
                     if (last_x_in_row) begin
                         // addr points to col 0. To start the new row of
-                        // windows, just move one row up.
+                        // windows, just go one row up.
                         addr_out <= addr_out - WORDS_PER_ROW;
                         row_state <= FETCH_ROW_0;
-                    end else if (starting_row || last_x_in_word) begin
+                    end else if (state == ROW_START_0) begin
+                        addr_out <= addr_out - 3*WORDS_PER_ROW + 1;
+                        row_state <= FETCH_ROW_0;
+                    end else if (last_x_in_word) begin
                         // two rows up, one col right
                         addr_out <= addr_out - 2*WORDS_PER_ROW + 1;
-                        if (starting_row || last_x_in_word)
-                            row_state <= FETCH_ROW_0;
-                        else
-                            row_state <= IDLE;
+                        row_state <= FETCH_ROW_0;
                     end
                 end
                 default: begin
@@ -189,17 +202,15 @@ module logic_fetcher(input wire clk_in,
             stall_out <= 1;
         end else if (state == ROW_START_0) begin
             case (row_state)
-                FETCH_ROW_0: buffer[2][2*WORD_SIZE-1] <= data_in[WORD_SIZE-1];
-                FETCH_ROW_1: buffer[1][2*WORD_SIZE-1] <= data_in[WORD_SIZE-1];
-                FETCH_ROW_2: buffer[0][2*WORD_SIZE-1] <= data_in[WORD_SIZE-1];
+                FETCH_ROW_0: buffer[2][2*WORD_SIZE-1] <= data_in[0];
+                FETCH_ROW_1: buffer[1][2*WORD_SIZE-1] <= data_in[0];
+                FETCH_ROW_2: buffer[0][2*WORD_SIZE-1] <= data_in[0];
             endcase
         end else if (state == ROW_START_1) begin
             case (row_state)
                 FETCH_ROW_0: buffer[2][2*WORD_SIZE-2:WORD_SIZE-1] <= data_in;
                 FETCH_ROW_1: buffer[1][2*WORD_SIZE-2:WORD_SIZE-1] <= data_in;
-                FETCH_ROW_2: begin
-                    buffer[0][2*WORD_SIZE-2:WORD_SIZE-1] <= data_in;
-                end
+                FETCH_ROW_2: buffer[0][2*WORD_SIZE-2:WORD_SIZE-1] <= data_in;
             endcase
         end else if (state == STEADY) begin
             case (row_state)
@@ -312,21 +323,21 @@ module logic_writeback(input wire clk_in, stall_in, start_in, done_in,
                        output logic wr_en_out, done_out,
                        output logic[LOG_MAX_ADDR-1:0] addr_w_out,
                        output logic[WORD_SIZE-1:0] data_w_out);
-    logic[LOG_WORD_SIZE-1:0] buffer_idx;
+    logic[LOG_WORD_SIZE-1:0] buf_size;
     always_ff @(posedge clk_in) begin
         if (start_in) begin
-            buffer_idx <= WORD_SIZE-1;
+            buf_size <= 0;
             addr_w_out <= MAX_ADDR-1;
             wr_en_out <= 0;
             data_w_out <= 0;
         end else if (!stall_in) begin
-            buffer_idx <= buffer_idx - NUM_PE;
+            buf_size <= buf_size + NUM_PE;
             data_w_out <= {data_w_out[WORD_SIZE-NUM_PE-1:0], next_state_in};
-            if (buffer_idx > 0) begin
-                wr_en_out <= 0;
-            end else begin
+            if (buf_size == WORD_SIZE-NUM_PE) begin
                 wr_en_out <= 1;
                 addr_w_out <= addr_w_out + 1;
+            end else begin
+                wr_en_out <= 0;
             end
         end 
         done_out <= done_in;
