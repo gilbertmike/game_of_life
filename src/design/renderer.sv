@@ -166,3 +166,48 @@ module cursor_render(input wire clk_in,
 endmodule
 `default_nettype wire
 
+`default_nettype none
+/**
+ * stat_render - counts number of alive squares in a frame, then
+ * creates an updating graph keeping tally of alive squares.
+ *
+ * Output:
+ *  - returns pix_out corresponding to the graph
+ */
+module stat_render(input wire clk_in,
+                 input wire[10:0] hcount_in,
+                 input wire[9:0] vcount_in,
+                 input wire is_alive_in,
+                 output logic[11:0] pix_out);
+        parameter GRAPH_HEIGHT = 200, GRAPH_WIDTH = 200;
+        parameter GRAPH_ORIGIN_x = 800, GRAPH_ORIGIN_Y = 100; //origin positioned at top left corner
+                 
+        //draws x and y axis for graph
+        always_comb begin
+            if ((vcount_in == GRAPH_ORIGIN_Y + GRAPH_HEIGHT) &&
+               (hcount_in > GRAPH_ORIGIN_x && hcount_in < (GRAPH_ORIGIN_x + GRAPH_WIDTH))) begin
+               pix_out = 12'hFFF;
+            end else if (hcount_in == GRAPH_ORIGIN_x && 
+                (vcount_in > GRAPH_ORIGIN_Y && vcount_in < (GRAPH_ORIGIN_Y + GRAPH_HEIGHT))) begin
+                pix_out = 12'hFFF;
+            end
+        end
+                 
+        logic[15:0] tally;
+        always_ff @(posedge clk_in) begin
+            if (hcount_in == SCREEN_WIDTH && vcount_in == SCREEN_HEIGHT) begin
+                tally <= 0;
+            end else if (is_alive_in) tally <= tally + 1;
+        end
+endmodule
+
+//helper module for stat_render, draws the lines within the graph
+module line_drawer(input wire clk_in,
+                   input wire[10:0] hcount_in,
+                   input wire[9:0] vcount_in,
+                   input wire[15:0] tally_in,
+                   output wire[11:0] line_pix_out);
+       
+endmodule
+`default_nettype wire
+
