@@ -381,13 +381,14 @@ module fence_render (input wire clk_130mhz,
                      output logic[11:0] pix_out);
                      
        localparam GAME_BOARD_DIS = 30, TOP_DIS = SCREEN_HEIGHT >> 1;
+       parameter VIEW_PIX = VIEW_SIZE * CELL_SIZE;
        
        always_ff @(posedge clk_130mhz) begin
             if (rst_in) begin
                 pix_out <= 0;
             end else begin
-                if (hcount_in > VIEW_SIZE) begin
-                    if (hcount_in == VIEW_SIZE + GAME_BOARD_DIS)
+                if (hcount_in > VIEW_PIX) begin
+                    if (hcount_in == VIEW_PIX + GAME_BOARD_DIS)
                         pix_out <= 12'hFFF;
                     else if (vcount_in == TOP_DIS)
                         pix_out <= 12'hFFF;
