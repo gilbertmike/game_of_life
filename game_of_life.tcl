@@ -27,20 +27,6 @@
 #
 # 3. The following remote source files that were added to the original project:-
 #
-#    "/home/gilbertm/Documents/game_of_life/src/ip/bram_buffer1/bram_buffer1.xci"
-#    "/home/gilbertm/Documents/game_of_life/src/ip/bram_buffer0/bram_buffer0.xci"
-#    "/home/gilbertm/Documents/game_of_life/src/design/common.svh"
-#    "/home/gilbertm/Documents/game_of_life/src/design/double_buffer.sv"
-#    "/home/gilbertm/Documents/game_of_life/src/design/life_logic.sv"
-#    "/home/gilbertm/Documents/game_of_life/src/design/renderer.sv"
-#    "/home/gilbertm/Documents/game_of_life/src/design/synchronizer.sv"
-#    "/home/gilbertm/Documents/game_of_life/src/design/user_interface.sv"
-#    "/home/gilbertm/Documents/game_of_life/src/design/top_level.sv"
-#    "/home/gilbertm/Documents/game_of_life/src/ip/clk_wiz_25mhz/clk_wiz_25mhz.xci"
-#    "/home/gilbertm/Documents/game_of_life/src/ip/clk_wiz_65mhz/clk_wiz_65mhz.xci"
-#    "/home/gilbertm/Documents/game_of_life/src/ip/clk_wiz_130mhz/clk_wiz_130mhz.xci"
-#    "/home/gilbertm/Documents/game_of_life/src/constraints/nexys4_ddr.xdc"
-#    "/home/gilbertm/Documents/game_of_life/src/sim/top_level_tb.sv"
 #
 #*****************************************************************************************
 
@@ -302,11 +288,61 @@ if {[string equal [get_filesets -quiet sim_1] ""]} {
 # Set 'sim_1' fileset object
 set obj [get_filesets sim_1]
 set files [list \
+ [file normalize "${origin_dir}/src/sim/stat_render_tb.sv"] \
+ [file normalize "${origin_dir}/src/sim/render_fetch_tb.sv"] \
+ [file normalize "${origin_dir}/src/sim/cursor_render_tb.sv"] \
+ [file normalize "${origin_dir}/src/sim/user_interface_tb.sv"] \
+ [file normalize "${origin_dir}/src/sim/double_buffer_tb.sv"] \
+ [file normalize "${origin_dir}/src/sim/synchronizer_tb.sv"] \
+ [file normalize "${origin_dir}/src/sim/logic_fetcher_tb.sv"] \
+ [file normalize "${origin_dir}/src/sim/logic_rule_tb.sv"] \
+ [file normalize "${origin_dir}/src/sim/logic_writeback_tb.sv"] \
  [file normalize "${origin_dir}/src/sim/top_level_tb.sv"] \
 ]
 add_files -norecurse -fileset $obj $files
 
 # Set 'sim_1' fileset file properties for remote files
+set file "$origin_dir/src/sim/stat_render_tb.sv"
+set file [file normalize $file]
+set file_obj [get_files -of_objects [get_filesets sim_1] [list "*$file"]]
+set_property -name "file_type" -value "SystemVerilog" -objects $file_obj
+
+set file "$origin_dir/src/sim/render_fetch_tb.sv"
+set file [file normalize $file]
+set file_obj [get_files -of_objects [get_filesets sim_1] [list "*$file"]]
+set_property -name "file_type" -value "SystemVerilog" -objects $file_obj
+
+set file "$origin_dir/src/sim/cursor_render_tb.sv"
+set file [file normalize $file]
+set file_obj [get_files -of_objects [get_filesets sim_1] [list "*$file"]]
+set_property -name "file_type" -value "SystemVerilog" -objects $file_obj
+
+set file "$origin_dir/src/sim/user_interface_tb.sv"
+set file [file normalize $file]
+set file_obj [get_files -of_objects [get_filesets sim_1] [list "*$file"]]
+set_property -name "file_type" -value "SystemVerilog" -objects $file_obj
+
+set file "$origin_dir/src/sim/double_buffer_tb.sv"
+set file [file normalize $file]
+set file_obj [get_files -of_objects [get_filesets sim_1] [list "*$file"]]
+set_property -name "file_type" -value "SystemVerilog" -objects $file_obj
+
+set file "$origin_dir/src/sim/synchronizer_tb.sv"
+set file [file normalize $file]
+set file_obj [get_files -of_objects [get_filesets sim_1] [list "*$file"]]
+set_property -name "file_type" -value "SystemVerilog" -objects $file_obj
+
+set file "$origin_dir/src/sim/logic_fetcher_tb.sv"
+set file [file normalize $file]
+set file_obj [get_files -of_objects [get_filesets sim_1] [list "*$file"]]
+set_property -name "file_type" -value "SystemVerilog" -objects $file_obj
+
+set file "$origin_dir/src/sim/logic_rule_tb.sv"
+set file [file normalize $file]
+set file_obj [get_files -of_objects [get_filesets sim_1] [list "*$file"]]
+set_property -name "file_type" -value "SystemVerilog" -objects $file_obj
+
+set file "$origin_dir/src/sim/logic_writeback_tb.sv"
 set file "$origin_dir/src/sim/top_level_tb.sv"
 set file [file normalize $file]
 set file_obj [get_files -of_objects [get_filesets sim_1] [list "*$file"]]
@@ -318,6 +354,7 @@ set_property -name "file_type" -value "SystemVerilog" -objects $file_obj
 
 # Set 'sim_1' fileset properties
 set obj [get_filesets sim_1]
+set_property -name "top" -value "stat_render_tb" -objects $obj
 set_property -name "top" -value "top_level_tb" -objects $obj
 set_property -name "top_auto_set" -value "0" -objects $obj
 set_property -name "top_lib" -value "xil_defaultlib" -objects $obj
