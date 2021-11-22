@@ -6,18 +6,9 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
                   input wire[15:0] sw,
                   output logic[3:0] vga_r, vga_g, vga_b,
                   output logic vga_hs, vga_vs);
-    logic clk_130mhz;
-    clk_wiz_130mhz clk_130(.clk_in1(clk_100mhz), .clk_out1(clk_130mhz));
-
-    pos_t cursor_x, cursor_y, view_x, view_y;
-    speed_t speed;
-    logic click;
-    user_interface#(LOG_DEBOUNCE_COUNT, LOG_WAIT_COUNT) ui(
-        .clk_in(clk_130mhz), .rst_in(sw[15]), .btnd_in(btnd),
-        .btnc_in(btnc), .btnl_in(btnl), .btnr_in(btnr), .btnu_in(btnu),
-        .sw_in(sw), .speed_out(speed), .cursor_x_out(cursor_x),
-        .cursor_y_out(cursor_y), .click_out(click), .view_x_out(view_x),
-        .view_y_out(view_y));
+    logic clk_130mhz, clk_65mhz;
+    clk_wiz_130mhz clk_130(.clk_in1(clk_100mhz), .clk_130mhz(clk_130mhz),
+                           .clk_65mhz(clk_65mhz));
 
     logic logic_done, render_done, db_ready;
     logic logic_start, buf_swap;
@@ -28,6 +19,16 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
                       .logic_start_out(logic_start),
                       .buf_swap_out(buf_swap));
 
+    pos_t cursor_x, cursor_y, view_x, view_y;
+    speed_t speed;
+    logic click;
+    user_interface#(LOG_DEBOUNCE_COUNT, LOG_WAIT_COUNT) ui(
+        .clk_in(clk_130mhz), .rst_in(sw[15]), .logic_done_in(logic_done),
+        .btnd_in(btnd), .btnc_in(btnc), .btnl_in(btnl), .btnr_in(btnr),
+        .btnu_in(btnu), .sw_in(sw), .speed_out(speed), .cursor_x_out(cursor_x),
+        .cursor_y_out(cursor_y), .click_out(click), .view_x_out(view_x),
+        .view_y_out(view_y));
+
     addr_t render_addr_r;
     data_t render_data_r;
     addr_t logic_addr_r, logic_addr_w;
@@ -35,7 +36,7 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
     logic logic_wr_en;
 
     double_buffer db(
-        .clk_in(clk_130mhz), .rst_in(sw[15]), .swap_in(buf_swap),
+        .clk_130mhz(clk_130mhz), .rst_in(sw[15]), .swap_in(buf_swap),
         .render_addr_r(render_addr_r),
         .logic_addr_r(logic_addr_r), .logic_addr_w(logic_addr_w),
         .logic_wr_en(logic_wr_en), .render_data_r(render_data_r),
@@ -43,7 +44,7 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
         .ready_out(db_ready));
 
     renderer renderer(
-        .clk_130mhz(clk_130mhz), .rst_in(sw[15]),
+        .clk_130mhz(clk_130mhz), .clk_65mhz(clk_65mhz), .rst_in(sw[15]),
         .data_in(render_data_r), .view_x_in(view_x), .view_y_in(view_y),
         .cursor_x_in(cursor_x), .cursor_y_in(cursor_y),
         .done_out(render_done), .addr_r_out(render_addr_r),
@@ -57,10 +58,5 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
         .addr_r_out(logic_addr_r), .addr_w_out(logic_addr_w),
         .wr_en_out(logic_wr_en), .data_w_out(logic_data_w),
         .done_out(logic_done));
-
-    ila_0 ila(.clk(clk_130mhz), .probe0({logic_done, render_done, logic_start, buf_swap}), .probe1(logic_addr_w),
-          .probe2(logic_addr_r), .probe3(cursor_x),
-          .probe4(cursor_y), .probe5(speed));
-
 endmodule
 `default_nettype wire

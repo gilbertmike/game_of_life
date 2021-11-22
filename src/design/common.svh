@@ -4,7 +4,7 @@
 // Memory and game state parameters
 parameter LOG_WORD_SIZE = 4;
 parameter LOG_BOARD_SIZE = 10;
-parameter LOG_VIEW_SIZE = 8;
+parameter LOG_VIEW_SIZE = 6;
 parameter LOG_NUM_PE = 0;
 parameter NUM_PE = 2**LOG_NUM_PE;
 parameter WINDOW_WIDTH = 2 + NUM_PE;
@@ -31,6 +31,8 @@ parameter LOG_SCREEN_HEIGHT = $clog2(SCREEN_HEIGHT);
 parameter LOG_CELL_SIZE = LOG_SCREEN_HEIGHT - LOG_VIEW_SIZE;
 parameter CELL_SIZE = 2**LOG_CELL_SIZE;
 
+parameter CELL_COLOR = 12'hFFF;
+parameter CURSOR_COLOR = 12'h0F0;
 
 // Commonly used data types
 typedef logic[LOG_MAX_ADDR-1:0] addr_t;

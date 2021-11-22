@@ -11,7 +11,7 @@
  * Timing:
  *  - Three stage pipeline.
  */
-module renderer(input wire clk_130mhz, rst_in,
+module renderer(input wire clk_130mhz, input wire clk_65mhz, rst_in,
                 input wire[WORD_SIZE-1:0] data_in,
                 input wire[LOG_BOARD_SIZE-1:0] view_x_in, view_y_in,
                 input wire[LOG_BOARD_SIZE-1:0] cursor_x_in, cursor_y_in,
@@ -19,9 +19,6 @@ module renderer(input wire clk_130mhz, rst_in,
                 output logic done_out,
                 output logic[11:0] pix_out,
                 output logic vsync_out, hsync_out);
-    logic clk_65mhz;
-    clk_wiz_65mhz clk_65(.clk_in1(clk_130mhz), .clk_out1(clk_65mhz));
-
     //initiate xvga instance
     logic [10:0] hcount0;
     logic [9:0] vcount0;
@@ -163,8 +160,7 @@ module render_fetch (input wire clk_130mhz,
                      input wire[LOG_BOARD_SIZE-1:0] view_x_in, view_y_in,
                      input wire[WORD_SIZE-1:0] data_r_in,
                      output logic[LOG_MAX_ADDR-1:0] addr_r_out,
-                     output logic is_alive_out);
-                     
+                     output logic is_alive_out);               
     localparam WORDS_PER_ROW = BOARD_SIZE / WORD_SIZE;
     // cell in view coordinate
     pos_t view_cell_x, view_cell_y;
@@ -212,9 +208,6 @@ module cursor_render(input wire clk_130mhz,
                      input wire[LOG_BOARD_SIZE-1:0] cursor_x_in,
                      input wire[LOG_BOARD_SIZE-1:0] cursor_y_in,
                      output logic[11:0] pix_out);
-    localparam CELL_SIZE = BOARD_SIZE / VIEW_SIZE;
-    localparam LOG_CELL_SIZE = LOG_BOARD_SIZE - LOG_VIEW_SIZE;
-
     pos_t cursor_x_in_view, cursor_y_in_view;
     logic[10:0] cursor_x_in_pix;
     logic[9:0] cursor_y_in_pix;
@@ -237,7 +230,7 @@ module cursor_render(input wire clk_130mhz,
 
     always_ff @(posedge clk_130mhz) begin
         if ((at_x_edge && in_y_range) || (at_y_edge && in_x_range))
-            pix_out <= 12'hFFF;
+            pix_out <= CURSOR_COLOR;
         else
             pix_out <= 12'b0;
     end
@@ -264,12 +257,11 @@ module cell_render(input wire clk_130mhz,
                    input wire[10:0] hcount_in,
                    input wire[9:0] vcount_in,
                    output logic[11:0] pix_out);
-       
         always_ff @(posedge clk_130mhz) begin
             if ((hcount_in < VIEW_SIZE*CELL_SIZE)
                     && (vcount_in < VIEW_SIZE*CELL_SIZE)) begin
                 if (is_alive_in)
-                   pix_out <= 12'hFFF;
+                   pix_out <= CELL_COLOR;
                 else
                    pix_out <= 12'h0;
             end else

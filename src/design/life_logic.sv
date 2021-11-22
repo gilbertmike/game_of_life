@@ -196,11 +196,7 @@ module logic_fetcher(input wire clk_in,
 
     // buffer population logic
     always_ff @(posedge clk_in) begin
-        if (start_in) begin
-            x_out <= 0;
-            y_out <= 0;
-            stall_out <= 1;
-        end else if (state == ROW_START_0) begin
+        if (state == ROW_START_0) begin
             case (row_state)
                 FETCH_ROW_0: buffer[2][2*WORD_SIZE-1] <= data_in[0];
                 FETCH_ROW_1: buffer[1][2*WORD_SIZE-1] <= data_in[0];
