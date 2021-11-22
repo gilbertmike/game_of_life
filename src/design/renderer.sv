@@ -268,7 +268,7 @@ module stat_render(input wire clk_130mhz,
                    output logic[11:0] pix_out);
         parameter GRAPH_HEIGHT = 200, GRAPH_WIDTH = 200;
         parameter HISTORY_LEN = 25;
-        parameter GRAPH_ORIGIN_X = 800, GRAPH_ORIGIN_Y = 16; //origin positioned at top left corner
+        parameter GRAPH_ORIGIN_X = 800, GRAPH_ORIGIN_Y = 32; //origin positioned at top left corner
         localparam SAMPLE_PIX = GRAPH_WIDTH / HISTORY_LEN;
         localparam LOG_HISTORY_LEN = $clog2(HISTORY_LEN) + 1;
         localparam LOG_SAMPLE_PIX = $clog2(SAMPLE_PIX);
