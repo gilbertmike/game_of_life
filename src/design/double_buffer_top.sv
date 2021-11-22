@@ -23,29 +23,5 @@ module double_buffer_top(input wire clk_100mhz, input wire[15:0] sw,
     always_ff @(posedge clk_65mhz) begin
         led <= render_data_r;
     end
-
-    logic [10:0] hcount0;
-    logic [9:0] vcount0;
-    logic hsync0, vsync0, blank0;
-    xvga xvga1(
-        .clk_65mhz(clk_65mhz), .rst_in(sw[15]),
-        .hcount_out(hcount0),
-        .vcount_out(vcount0),
-        .vsync_out(hsync0),
-        .hsync_out(vsync0),
-        .blank_out(blank0));
-
-    always_ff @(posedge clk_65mhz) begin
-//        if (render_data_r[hcount0[LOG_WORD_SIZE-1+3:3]]) begin
-//            vga_r <= 4'hF;
-//        end
-//        if (logic_data_r[hcount0[LOG_WORD_SIZE-1+3:3]]) begin
-//            vga_g <= 4'hF;
-//        end
-        vga_r <= 4'h0;
-        vga_g <= 4'h0;
-        vga_b <= blank0 ? 4'h0 : 4'hF;
-        {vga_hs, vga_vs} <= {~hsync0, ~vsync0};
-    end
 endmodule
 `default_nettype wire
