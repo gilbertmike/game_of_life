@@ -81,6 +81,16 @@ module renderer(input wire clk_130mhz, input wire clk_65mhz, rst_in,
                        .vcount_in(vcount1),
                        .is_alive_in(is_alive),
                        .pix_out(stat_pix));
+<<<<<<< HEAD
+=======
+                       
+    logic[11:0] fence_pix;
+    fence_render fence_r(.clk_130mhz(clk_130mhz),
+                         .rst_in(rst_in),
+                         .hcount_in(hcount1),
+                         .vcount_in(vcount1),
+                         .pix_out(fence_pix));
+>>>>>>> ff6075a1209d29b2f7ca4f4a0b3d07d797e4978a
 
     // Third stage pipeline --------------------------------------------------
 
@@ -89,7 +99,11 @@ module renderer(input wire clk_130mhz, input wire clk_65mhz, rst_in,
             pix_out <= 0;
             done_out <= 1;
         end else begin
+<<<<<<< HEAD
             pix_out <= blank1 ? 0 : cell_pix + cursor_pix + stat_pix;
+=======
+            pix_out <= blank1 ? 0 : cell_pix + cursor_pix + stat_pix + fence_pix;
+>>>>>>> ff6075a1209d29b2f7ca4f4a0b3d07d797e4978a
             done_out <= (vcount1 >= SCREEN_HEIGHT);
         end
         {hsync_out, vsync_out} <= {~hsync1, ~vsync1};
@@ -350,6 +364,36 @@ module cell_render(input wire clk_130mhz,
                 pix_out <= 12'h0;
         end         
    
+endmodule
+
+`default_nettype none
+// * fence_render - draws the border that separates game board, 
+// *                graph and pattern selection
+// * Output: pix_out
+// * 
+// * Timing: 
+// - stage 2 pipeline
+module fence_render (input wire clk_130mhz,
+                     input wire rst_in,
+                     input wire[10:0] hcount_in,
+                     input wire[9:0] vcount_in,
+                     output logic[11:0] pix_out);
+                     
+       localparam GAME_BOARD_DIS = 30, TOP_DIS = SCREEN_HEIGHT >> 1;
+       parameter VIEW_PIX = VIEW_SIZE * CELL_SIZE;
+       
+       always_ff @(posedge clk_130mhz) begin
+            if (rst_in) begin
+                pix_out <= 0;
+            end else begin
+                if (hcount_in == VIEW_PIX)
+                    pix_out <= 12'hFFF;
+                else if (hcount_in > VIEW_PIX && vcount_in == TOP_DIS)
+                    pix_out <= 12'hFFF;
+                else 
+                    pix_out <= 12'h0;
+            end
+       end
 endmodule
 
 `default_nettype wire
