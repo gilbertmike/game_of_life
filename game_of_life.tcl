@@ -143,7 +143,6 @@ set files [list \
  [file normalize "${origin_dir}/src/design/synchronizer.sv"] \
  [file normalize "${origin_dir}/src/design/user_interface.sv"] \
  [file normalize "${origin_dir}/src/design/top_level.sv"] \
- [file normalize "${origin_dir}/src/ip/clk_wiz_25mhz/clk_wiz_25mhz.xci"] \
 ]
 add_files -norecurse -fileset $obj $files
 
@@ -201,15 +200,6 @@ set file [file normalize $file]
 set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
 set_property -name "file_type" -value "SystemVerilog" -objects $file_obj
 
-set file "$origin_dir/src/ip/clk_wiz_25mhz/clk_wiz_25mhz.xci"
-set file [file normalize $file]
-set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
-set_property -name "generate_files_for_reference" -value "0" -objects $file_obj
-set_property -name "registered_with_manager" -value "1" -objects $file_obj
-if { ![get_property "is_locked" $file_obj] } {
-  set_property -name "synth_checkpoint_mode" -value "Singular" -objects $file_obj
-}
-
 
 # Set 'sources_1' fileset file properties for local files
 # None
@@ -221,13 +211,9 @@ set_property -name "top_auto_set" -value "0" -objects $obj
 
 # Set 'sources_1' fileset object
 set obj [get_filesets sources_1]
-set files [list \
- [file normalize "${origin_dir}/src/ip/clk_wiz_65mhz/clk_wiz_65mhz.xci"] \
-]
 add_files -norecurse -fileset $obj $files
 
 # Set 'sources_1' fileset file properties for remote files
-set file "$origin_dir/src/ip/clk_wiz_65mhz/clk_wiz_65mhz.xci"
 set file [file normalize $file]
 set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
 set_property -name "generate_files_for_reference" -value "0" -objects $file_obj
@@ -242,13 +228,9 @@ if { ![get_property "is_locked" $file_obj] } {
 
 # Set 'sources_1' fileset object
 set obj [get_filesets sources_1]
-set files [list \
- [file normalize "${origin_dir}/src/ip/clk_wiz_130mhz/clk_wiz_130mhz.xci"] \
-]
 add_files -norecurse -fileset $obj $files
 
 # Set 'sources_1' fileset file properties for remote files
-set file "$origin_dir/src/ip/clk_wiz_130mhz/clk_wiz_130mhz.xci"
 set file [file normalize $file]
 set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
 set_property -name "generate_files_for_reference" -value "0" -objects $file_obj
