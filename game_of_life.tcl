@@ -27,17 +27,26 @@
 #
 # 3. The following remote source files that were added to the original project:-
 #
+#    "C:/Users/Fiona/Documents/GitHub/game_of_life/src/ip/bram_buffer1/bram_buffer1.xci"
+#    "C:/Users/Fiona/Documents/GitHub/game_of_life/src/ip/bram_buffer0/bram_buffer0.xci"
+#    "C:/Users/Fiona/Documents/GitHub/game_of_life/src/design/common.svh"
+#    "C:/Users/Fiona/Documents/GitHub/game_of_life/src/design/double_buffer.sv"
+#    "C:/Users/Fiona/Documents/GitHub/game_of_life/src/design/life_logic.sv"
+#    "C:/Users/Fiona/Documents/GitHub/game_of_life/src/design/renderer.sv"
+#    "C:/Users/Fiona/Documents/GitHub/game_of_life/src/design/synchronizer.sv"
+#    "C:/Users/Fiona/Documents/GitHub/game_of_life/src/design/user_interface.sv"
+#    "C:/Users/Fiona/Documents/GitHub/game_of_life/src/design/top_level.sv"
+#    "C:/Users/Fiona/Documents/GitHub/game_of_life/src/sim/stat_render_tb.sv"
+#    "C:/Users/Fiona/Documents/GitHub/game_of_life/src/sim/render_fetch_tb.sv"
+#    "C:/Users/Fiona/Documents/GitHub/game_of_life/src/sim/cursor_render_tb.sv"
+#    "C:/Users/Fiona/Documents/GitHub/game_of_life/src/sim/user_interface_tb.sv"
+#    "C:/Users/Fiona/Documents/GitHub/game_of_life/src/sim/double_buffer_tb.sv"
+#    "C:/Users/Fiona/Documents/GitHub/game_of_life/src/sim/synchronizer_tb.sv"
+#    "C:/Users/Fiona/Documents/GitHub/game_of_life/src/sim/logic_fetcher_tb.sv"
+#    "C:/Users/Fiona/Documents/GitHub/game_of_life/src/sim/logic_rule_tb.sv"
+#    "C:/Users/Fiona/Documents/GitHub/game_of_life/src/sim/logic_writeback_tb.sv"
 #    "/home/gilbertm/Documents/game_of_life/src/ip/clk_wiz_65mhz/clk_wiz_65mhz.xci"
-#    "/home/gilbertm/Documents/game_of_life/src/ip/bram_buffer1/bram_buffer1.xci"
-#    "/home/gilbertm/Documents/game_of_life/src/ip/bram_buffer0/bram_buffer0.xci"
 #    "/home/gilbertm/Documents/game_of_life/src/ip/clk_wiz_130mhz/clk_wiz_130mhz.xci"
-#    "/home/gilbertm/Documents/game_of_life/src/design/common.svh"
-#    "/home/gilbertm/Documents/game_of_life/src/design/double_buffer.sv"
-#    "/home/gilbertm/Documents/game_of_life/src/design/life_logic.sv"
-#    "/home/gilbertm/Documents/game_of_life/src/design/renderer.sv"
-#    "/home/gilbertm/Documents/game_of_life/src/design/synchronizer.sv"
-#    "/home/gilbertm/Documents/game_of_life/src/design/user_interface.sv"
-#    "/home/gilbertm/Documents/game_of_life/src/design/top_level.sv"
 #    "/home/gilbertm/Documents/game_of_life/src/ip/clk_wiz_25mhz/clk_wiz_25mhz.xci"
 #    "/home/gilbertm/Documents/game_of_life/src/ip/ila_0/ila_0.xci"
 #    "/home/gilbertm/Documents/game_of_life/src/sim/top_level_tb.sv"
@@ -129,17 +138,16 @@ set_property -name "platform.board_id" -value "nexys4_ddr" -objects $obj
 set_property -name "sim.central_dir" -value "$proj_dir/${_xil_proj_name_}.ip_user_files" -objects $obj
 set_property -name "sim.ip.auto_export_scripts" -value "1" -objects $obj
 set_property -name "simulator_language" -value "Mixed" -objects $obj
-set_property -name "source_mgmt_mode" -value "None" -objects $obj
-set_property -name "webtalk.activehdl_export_sim" -value "17" -objects $obj
-set_property -name "webtalk.ies_export_sim" -value "17" -objects $obj
-set_property -name "webtalk.modelsim_export_sim" -value "17" -objects $obj
-set_property -name "webtalk.questa_export_sim" -value "17" -objects $obj
-set_property -name "webtalk.riviera_export_sim" -value "17" -objects $obj
-set_property -name "webtalk.vcs_export_sim" -value "17" -objects $obj
-set_property -name "webtalk.xcelium_export_sim" -value "17" -objects $obj
-set_property -name "webtalk.xsim_export_sim" -value "17" -objects $obj
-set_property -name "webtalk.xsim_launch_sim" -value "66" -objects $obj
-set_property -name "xpm_libraries" -value "XPM_CDC XPM_MEMORY" -objects $obj
+set_property -name "webtalk.activehdl_export_sim" -value "9" -objects $obj
+set_property -name "webtalk.ies_export_sim" -value "9" -objects $obj
+set_property -name "webtalk.modelsim_export_sim" -value "9" -objects $obj
+set_property -name "webtalk.questa_export_sim" -value "9" -objects $obj
+set_property -name "webtalk.riviera_export_sim" -value "9" -objects $obj
+set_property -name "webtalk.vcs_export_sim" -value "9" -objects $obj
+set_property -name "webtalk.xcelium_export_sim" -value "9" -objects $obj
+set_property -name "webtalk.xsim_export_sim" -value "9" -objects $obj
+set_property -name "webtalk.xsim_launch_sim" -value "94" -objects $obj
+set_property -name "xpm_libraries" -value "XPM_MEMORY" -objects $obj
 
 # Create 'sources_1' fileset (if not found)
 if {[string equal [get_filesets -quiet sources_1] ""]} {
@@ -285,11 +293,61 @@ if {[string equal [get_filesets -quiet sim_1] ""]} {
 # Set 'sim_1' fileset object
 set obj [get_filesets sim_1]
 set files [list \
+ [file normalize "${origin_dir}/src/sim/stat_render_tb.sv"] \
+ [file normalize "${origin_dir}/src/sim/render_fetch_tb.sv"] \
+ [file normalize "${origin_dir}/src/sim/cursor_render_tb.sv"] \
+ [file normalize "${origin_dir}/src/sim/user_interface_tb.sv"] \
+ [file normalize "${origin_dir}/src/sim/double_buffer_tb.sv"] \
+ [file normalize "${origin_dir}/src/sim/synchronizer_tb.sv"] \
+ [file normalize "${origin_dir}/src/sim/logic_fetcher_tb.sv"] \
+ [file normalize "${origin_dir}/src/sim/logic_rule_tb.sv"] \
+ [file normalize "${origin_dir}/src/sim/logic_writeback_tb.sv"] \
  [file normalize "${origin_dir}/src/sim/top_level_tb.sv"] \
 ]
 add_files -norecurse -fileset $obj $files
 
 # Set 'sim_1' fileset file properties for remote files
+set file "$origin_dir/src/sim/stat_render_tb.sv"
+set file [file normalize $file]
+set file_obj [get_files -of_objects [get_filesets sim_1] [list "*$file"]]
+set_property -name "file_type" -value "SystemVerilog" -objects $file_obj
+
+set file "$origin_dir/src/sim/render_fetch_tb.sv"
+set file [file normalize $file]
+set file_obj [get_files -of_objects [get_filesets sim_1] [list "*$file"]]
+set_property -name "file_type" -value "SystemVerilog" -objects $file_obj
+
+set file "$origin_dir/src/sim/cursor_render_tb.sv"
+set file [file normalize $file]
+set file_obj [get_files -of_objects [get_filesets sim_1] [list "*$file"]]
+set_property -name "file_type" -value "SystemVerilog" -objects $file_obj
+
+set file "$origin_dir/src/sim/user_interface_tb.sv"
+set file [file normalize $file]
+set file_obj [get_files -of_objects [get_filesets sim_1] [list "*$file"]]
+set_property -name "file_type" -value "SystemVerilog" -objects $file_obj
+
+set file "$origin_dir/src/sim/double_buffer_tb.sv"
+set file [file normalize $file]
+set file_obj [get_files -of_objects [get_filesets sim_1] [list "*$file"]]
+set_property -name "file_type" -value "SystemVerilog" -objects $file_obj
+
+set file "$origin_dir/src/sim/synchronizer_tb.sv"
+set file [file normalize $file]
+set file_obj [get_files -of_objects [get_filesets sim_1] [list "*$file"]]
+set_property -name "file_type" -value "SystemVerilog" -objects $file_obj
+
+set file "$origin_dir/src/sim/logic_fetcher_tb.sv"
+set file [file normalize $file]
+set file_obj [get_files -of_objects [get_filesets sim_1] [list "*$file"]]
+set_property -name "file_type" -value "SystemVerilog" -objects $file_obj
+
+set file "$origin_dir/src/sim/logic_rule_tb.sv"
+set file [file normalize $file]
+set file_obj [get_files -of_objects [get_filesets sim_1] [list "*$file"]]
+set_property -name "file_type" -value "SystemVerilog" -objects $file_obj
+
+set file "$origin_dir/src/sim/logic_writeback_tb.sv"
 set file "$origin_dir/src/sim/top_level_tb.sv"
 set file [file normalize $file]
 set file_obj [get_files -of_objects [get_filesets sim_1] [list "*$file"]]
@@ -301,6 +359,7 @@ set_property -name "file_type" -value "SystemVerilog" -objects $file_obj
 
 # Set 'sim_1' fileset properties
 set obj [get_filesets sim_1]
+set_property -name "top" -value "stat_render_tb" -objects $obj
 set_property -name "top" -value "top_level_tb" -objects $obj
 set_property -name "top_auto_set" -value "0" -objects $obj
 set_property -name "top_lib" -value "xil_defaultlib" -objects $obj

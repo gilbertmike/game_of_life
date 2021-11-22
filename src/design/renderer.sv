@@ -76,6 +76,14 @@ module renderer(input wire clk_130mhz, rst_in,
                            .vcount_in(vcount1), .view_x_in(view_x),
                            .view_y_in(view_y), .cursor_x_in(cursor_x),
                            .cursor_y_in(cursor_y), .pix_out(cursor_pix));
+                           
+    logic[11:0] stat_pix;
+    stat_render stat_r(.clk_130mhz(clk_130mhz),
+                       .rst_in(rst_in),
+                       .hcount_in(hcount1),
+                       .vcount_in(vcount1),
+                       .is_alive_in(is_alive),
+                       .pix_out(stat_pix));
 
     // Third stage pipeline --------------------------------------------------
 
@@ -84,7 +92,7 @@ module renderer(input wire clk_130mhz, rst_in,
             pix_out <= 0;
             done_out <= 1;
         end else begin
-            pix_out <= blank1 ? 0 : cell_pix + cursor_pix;
+            pix_out <= blank1 ? 0 : cell_pix + cursor_pix + stat_pix;
             done_out <= (vcount1 >= SCREEN_HEIGHT);
         end
         {hsync_out, vsync_out} <= {~hsync1, ~vsync1};
@@ -246,19 +254,93 @@ endmodule
 
 `default_nettype none
 /**
- * cell_render - renders a highlighted square.
- * 
- * Assumptions:
- *  - view starts at pixel (0, 0).
- *  - is_alive signal has correct timing, received every cycle for every pixel.
+ * stat_render - counts number of alive squares in a frame, then
+ * creates an updating graph keeping tally of alive squares.
  *
  * Output:
- *  - returns white when the pixel is included in an alive cell.
- *  - black otherwise.
- *
- * Timing:
- *  - Stage one pipeline.
+ *  - returns pix_out corresponding to the graph
  */
+module stat_render(input wire clk_130mhz,
+                   input wire rst_in,
+                   input wire[10:0] hcount_in,
+                   input wire[9:0] vcount_in,
+                   input wire is_alive_in,
+                   output logic[11:0] pix_out);
+        parameter GRAPH_HEIGHT = 200, GRAPH_WIDTH = 200;
+        parameter HISTORY_LEN = 25;
+        parameter GRAPH_ORIGIN_X = 800, GRAPH_ORIGIN_Y = 32; //origin positioned at top left corner
+        localparam SAMPLE_PIX = GRAPH_WIDTH / HISTORY_LEN;
+        localparam LOG_HISTORY_LEN = $clog2(HISTORY_LEN) + 1;
+        localparam LOG_SAMPLE_PIX = $clog2(SAMPLE_PIX);
+
+        logic[4:0] frame_cnt;
+        logic[15:0] max_tally;
+        logic[4:0] log_max_tally;
+        logic[HISTORY_LEN:0][15:0] tally;
+        always_ff @(posedge clk_130mhz) begin
+            if (rst_in) begin
+                frame_cnt <= 0;
+                max_tally <= 1;
+                log_max_tally <= 0;
+            end else if (hcount_in == SCREEN_WIDTH-1 && vcount_in == SCREEN_HEIGHT-1) begin
+                frame_cnt <= frame_cnt + 1;
+                if (frame_cnt == 5'b1_1111) begin
+                    tally <= {tally[HISTORY_LEN:1], 16'b0};
+                end
+            end else if (frame_cnt == 5'b0) begin
+                tally[0] <= tally[0] + is_alive_in;
+                if (tally[0] > max_tally) begin
+                    max_tally <= max_tally << 1;
+                    log_max_tally <= log_max_tally + 1;
+                end
+            end
+        end
+        
+        logic[LOG_HISTORY_LEN-1:0] sample_idx;
+        logic[9:0] sample_height;
+        logic[9:0] sample_vcount;
+        logic in_range_x, in_range_y, on_point;
+        always_comb begin
+            in_range_x = hcount_in > GRAPH_ORIGIN_X
+                && hcount_in < (GRAPH_ORIGIN_X + GRAPH_WIDTH);
+            in_range_y = vcount_in > GRAPH_ORIGIN_Y
+                && vcount_in < (GRAPH_ORIGIN_Y + GRAPH_HEIGHT);
+            sample_idx = (hcount_in - GRAPH_ORIGIN_X) >> LOG_SAMPLE_PIX;
+            sample_height =
+                (GRAPH_HEIGHT * tally[sample_idx]) << log_max_tally;
+            sample_vcount = GRAPH_ORIGIN_Y + GRAPH_HEIGHT - sample_height;
+            on_point = vcount_in == sample_vcount;
+        end
+
+        //draws x and y axis for graph
+        always_ff @(posedge clk_130mhz) begin
+            if ((vcount_in == GRAPH_ORIGIN_Y + GRAPH_HEIGHT)
+                    && in_range_x) begin
+                pix_out <= 12'hFFF;
+            end else if (hcount_in == GRAPH_ORIGIN_X && in_range_y) begin
+                pix_out <= 12'hFFF;
+            end else if (in_range_x && in_range_y && on_point) begin
+                pix_out <= 12'hFFF;
+            end else begin
+                pix_out <= 12'h0;
+            end
+        end
+endmodule
+`default_nettype wire
+
+// * cell_render - renders a highlighted square.
+// * 
+// * Assumptions:
+// *  - view starts at pixel (0, 0).
+// *  - is_alive signal has correct timing, received every cycle for every pixel.
+// *
+// * Output:
+// *  - returns white when the pixel is included in an alive cell.
+// *  - black otherwise.
+// *
+// * Timing:
+// *  - Stage one pipeline.
+// */
 module cell_render(input wire clk_130mhz,
                    input wire is_alive_in,
                    input wire[10:0] hcount_in,
