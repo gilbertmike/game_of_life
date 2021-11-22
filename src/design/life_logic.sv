@@ -102,10 +102,26 @@ module logic_fetcher(input wire clk_in,
     localparam WORDS_PER_ROW = BOARD_SIZE / WORD_SIZE;
     localparam STRIDE = NUM_PE;
 
-    enum logic[1:0] { DONE, ROW_START_0, ROW_START_1, STEADY } state;
-    enum logic[1:0] { IDLE, FETCH_ROW_0, FETCH_ROW_1, FETCH_ROW_2 } row_state;
+    enum logic[3:0] {
+        SEARCH, PRE_FETCH_ROW_0, FETCH_ROW_0, FETCH_ROW_1, FETCH_ROW_2,
+        FETCH_ROW_3, FETCH_ROW_4, FETCH_ROW_5, WINDOW, READY
+    } cache_state;
 
-    logic[2*WORD_SIZE-1:0] buffer[2:0];
+    // cache data structures
+    addr_t buf_addr;  // address of first word in buffer
+    logic valid;
+    logic[0:2*WORD_SIZE-1] buffer[2:0];
+
+    // addresses of first and last words making up a window.
+    addr_t word_addr;
+    logic[LOG_WORD_SIZE-1:0] word_idx;  // index of x_out - 1 in cache
+    logic cache_hit;
+    always_comb begin
+        word_addr = (((y_out - 1) << LOG_BOARD_SIZE) + x_out - 1)
+            >> LOG_WORD_SIZE;
+        cache_hit = (word_addr == buf_addr) && valid;
+        word_idx = x_out[LOG_WORD_SIZE-1:0] - 1;
+    end
 
     // control state machine
     logic last_x_in_row, last_y_in_col;
@@ -113,136 +129,100 @@ module logic_fetcher(input wire clk_in,
     assign last_y_in_col = y_out == BOARD_SIZE-1;
     always_ff @(posedge clk_in) begin
         if (start_in) begin
-            state <= ROW_START_0;
             x_out <= 0;
             y_out <= 0;
             done_out <= 0;
+            stall_out <= 1;
+
+            cache_state <= SEARCH;  // lookup from cache
         end else begin
-            case (state)
-                ROW_START_0:
-                    if (row_state == FETCH_ROW_2) state <= ROW_START_1;
-                ROW_START_1:
-                    if (row_state == FETCH_ROW_2) begin
-                        state <= STEADY;
-                        stall_out <= 0;
-                    end
-                STEADY: begin
-                    if (last_x_in_row && last_y_in_col) begin
-                        state <= DONE;
-                        x_out <= 0;
-                        y_out <= 0;
-                        stall_out <= 1;
-                        done_out <= 1;
-                    end else if (last_x_in_row) begin
-                        state <= ROW_START_0;
-                        x_out <= 0;
-                        y_out <= y_out + 1;
-                        stall_out <= 1;
-                    end else begin
-                        x_out <= x_out + STRIDE;
-                    end
+            if (!stall_out) begin  // ready to move
+                if (last_x_in_row && last_y_in_col) begin
+                    x_out <= 0;
+                    y_out <= 0;
+                    done_out <= 1;
+                    stall_out <= 1;
+                end else if (last_x_in_row) begin
+                    x_out <= 0;
+                    y_out <= y_out + 1;
+                    stall_out <= 1;
+                end else begin
+                    x_out <= x_out + STRIDE;
+                    stall_out <= 1;
                 end
-                DONE: begin /* wait for start */ end
-            endcase
+                cache_state <= SEARCH;
+            end
         end
     end
 
-
-    // address calculation logic
-    // 
-    // Fetches three rows at a time. Maintains the invariants:
-    //  - When row_state == FETCH_ROW_i then row i (from top) is in data_in.
-    logic last_x_in_word, starting_row;
-    assign last_x_in_word = x_out[LOG_WORD_SIZE-1:0] == WORD_SIZE-1;
-    assign starting_row = state == ROW_START_0 || state == ROW_START_1;
+    // cache logic
     always_ff @(posedge clk_in) begin
         if (start_in) begin
-            row_state <= FETCH_ROW_0;
-            addr_out <= WORDS_PER_ROW-1;
+            {buffer[2], buffer[1], buffer[0]} <= {3*2*WORD_SIZE{1'b0}};
+            buf_addr <= 0;
+            addr_out <= 0;
+            valid <= 0;
         end else begin
-            case (row_state)
-                IDLE: if (last_x_in_word) row_state <= FETCH_ROW_0;
-                FETCH_ROW_0: begin
-                    row_state <= FETCH_ROW_1;
-                    // next row, same col
-                    addr_out <= addr_out + WORDS_PER_ROW;
-                end
-                FETCH_ROW_1: begin
-                    row_state <= FETCH_ROW_2;
-                    addr_out <= addr_out + WORDS_PER_ROW; // next row, same col
-                end
-                FETCH_ROW_2: begin
-                    if (last_x_in_row) begin
-                        // addr points to col 0. To start the new row of
-                        // windows, just go one row up.
-                        addr_out <= addr_out - WORDS_PER_ROW;
-                        row_state <= FETCH_ROW_0;
-                    end else if (state == ROW_START_0) begin
-                        addr_out <= addr_out - 3*WORDS_PER_ROW + 1;
-                        row_state <= FETCH_ROW_0;
-                    end else if (last_x_in_word) begin
-                        // two rows up, one col right
-                        addr_out <= addr_out - 2*WORDS_PER_ROW + 1;
-                        row_state <= FETCH_ROW_0;
+            case (cache_state)
+                SEARCH: begin
+                    if (cache_hit) begin
+                        cache_state <= READY;
+
+                        window_out[2] <= buffer[2][word_idx+:WINDOW_WIDTH];
+                        window_out[1] <= buffer[1][word_idx+:WINDOW_WIDTH];
+                        window_out[0] <= buffer[0][word_idx+:WINDOW_WIDTH];
+                        stall_out <= 0;
+                    end else begin
+                        buf_addr <= word_addr;
+                        addr_out <= word_addr;
+                        cache_state <= PRE_FETCH_ROW_0;
                     end
                 end
-                default: begin
-                    row_state <= FETCH_ROW_0;
-                    addr_out <= 0;
-                end
-            endcase
-        end
-    end
-
-    // buffer population logic
-    always_ff @(posedge clk_in) begin
-        if (state == ROW_START_0) begin
-            case (row_state)
-                FETCH_ROW_0: buffer[2][2*WORD_SIZE-1] <= data_in[0];
-                FETCH_ROW_1: buffer[1][2*WORD_SIZE-1] <= data_in[0];
-                FETCH_ROW_2: buffer[0][2*WORD_SIZE-1] <= data_in[0];
-            endcase
-        end else if (state == ROW_START_1) begin
-            case (row_state)
-                FETCH_ROW_0: buffer[2][2*WORD_SIZE-2:WORD_SIZE-1] <= data_in;
-                FETCH_ROW_1: buffer[1][2*WORD_SIZE-2:WORD_SIZE-1] <= data_in;
-                FETCH_ROW_2: buffer[0][2*WORD_SIZE-2:WORD_SIZE-1] <= data_in;
-            endcase
-        end else if (state == STEADY) begin
-            case (row_state)
-                IDLE: begin
-                    buffer[2] <= buffer[2] << 1;
-                    buffer[1] <= buffer[1] << 1;
-                    buffer[0] <= buffer[0] << 1;
+                PRE_FETCH_ROW_0: begin
+                    addr_out <= addr_out + WORDS_PER_ROW;
+                    cache_state <= FETCH_ROW_0;
                 end
                 FETCH_ROW_0: begin
-                    buffer[2] <= {buffer[2][2*WORD_SIZE-2:WORD_SIZE-1],
-                                  data_in};
-                    buffer[1] <= buffer[1] << 1;
-                    buffer[0] <= buffer[0] << 1;
+                    addr_out <= addr_out + WORDS_PER_ROW;
+                    cache_state <= FETCH_ROW_1;
+
+                    buffer[2][0+:WORD_SIZE] <= data_in;
                 end
                 FETCH_ROW_1: begin
-                    buffer[2] <= buffer[2] << 1;
-                    buffer[1] <= {buffer[1][2*WORD_SIZE-1:WORD_SIZE],
-                                  data_in,
-                                  1'b0};
-                    buffer[0] <= buffer[0] << 1;
+                    addr_out <= addr_out - 2*WORDS_PER_ROW + 1;
+                    cache_state <= FETCH_ROW_2;
+
+                    buffer[1][0+:WORD_SIZE] <= data_in;
                 end
                 FETCH_ROW_2: begin
-                    buffer[2] <= buffer[2] << 1;
-                    buffer[1] <= buffer[1] << 1;
-                    buffer[0] <= {buffer[0][2*WORD_SIZE-1:WORD_SIZE+1],
-                                  data_in,
-                                  2'b0};
+                    addr_out <= addr_out + WORDS_PER_ROW;
+                    cache_state <= FETCH_ROW_3;
+
+                    buffer[0][0+:WORD_SIZE] <= data_in;
+                    valid <= 1;
+                end
+                FETCH_ROW_3: begin
+                    addr_out <= addr_out + WORDS_PER_ROW;
+                    cache_state <= FETCH_ROW_4;
+
+                    buffer[2][WORD_SIZE-1+:WORD_SIZE] <= data_in;
+                end
+                FETCH_ROW_4: begin
+                    cache_state <= FETCH_ROW_5;
+
+                    buffer[1][WORD_SIZE-1+:WORD_SIZE] <= data_in;
+                end
+                FETCH_ROW_5: begin
+                    cache_state <= SEARCH;
+
+                    buffer[0][WORD_SIZE-1+:WORD_SIZE] <= data_in;
+                    valid <= 1;
+                end
+                READY: begin /* wait */ end
+                default: begin
+                    cache_state <= READY;
                 end
             endcase
-        end
-    end
-
-    // window logic
-    always_comb begin
-        for (integer i = 0; i < 3; i++) begin
-            window_out[i] = buffer[i][2*WORD_SIZE-1:2*WORD_SIZE-WINDOW_WIDTH];
         end
     end
 endmodule
