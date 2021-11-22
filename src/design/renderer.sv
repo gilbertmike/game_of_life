@@ -90,7 +90,7 @@ module renderer(input wire clk_130mhz, rst_in,
                          .rst_in(rst_in),
                          .hcount_in(hcount1),
                          .vcount_in(vcount1),
-                         .pix_out(stat_pix));
+                         .pix_out(fence_pix));
 
     // Third stage pipeline --------------------------------------------------
 
