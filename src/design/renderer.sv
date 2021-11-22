@@ -76,6 +76,14 @@ module renderer(input wire clk_130mhz, rst_in,
                            .vcount_in(vcount1), .view_x_in(view_x),
                            .view_y_in(view_y), .cursor_x_in(cursor_x),
                            .cursor_y_in(cursor_y), .pix_out(cursor_pix));
+                           
+    logic[11:0] stat_pix;
+    stat_render stat_r(.clk_130mhz(clk_130mhz),
+                       .rst_in(rst_in),
+                       .hcount_in(hcount1),
+                       .vcount_in(vcount1),
+                       .is_alive_in(is_alive),
+                       .pix_out(stat_pix));
 
     // Third stage pipeline --------------------------------------------------
 
@@ -84,7 +92,7 @@ module renderer(input wire clk_130mhz, rst_in,
             pix_out <= 0;
             done_out <= 1;
         end else begin
-            pix_out <= blank1 ? 0 : cell_pix + cursor_pix;
+            pix_out <= blank1 ? 0 : cell_pix + cursor_pix + stat_pix;
             done_out <= (vcount1 >= SCREEN_HEIGHT);
         end
         {hsync_out, vsync_out} <= {~hsync1, ~vsync1};
@@ -320,19 +328,19 @@ module stat_render(input wire clk_130mhz,
 endmodule
 `default_nettype wire
 
- * cell_render - renders a highlighted square.
- * 
- * Assumptions:
- *  - view starts at pixel (0, 0).
- *  - is_alive signal has correct timing, received every cycle for every pixel.
- *
- * Output:
- *  - returns white when the pixel is included in an alive cell.
- *  - black otherwise.
- *
- * Timing:
- *  - Stage one pipeline.
- */
+// * cell_render - renders a highlighted square.
+// * 
+// * Assumptions:
+// *  - view starts at pixel (0, 0).
+// *  - is_alive signal has correct timing, received every cycle for every pixel.
+// *
+// * Output:
+// *  - returns white when the pixel is included in an alive cell.
+// *  - black otherwise.
+// *
+// * Timing:
+// *  - Stage one pipeline.
+// */
 module cell_render(input wire clk_130mhz,
                    input wire is_alive_in,
                    input wire[10:0] hcount_in,
