@@ -190,21 +190,21 @@ module stat_render(input wire clk_130mhz,
         logic[4:0] frame_cnt;
         logic[15:0] max_tally;
         logic[4:0] log_max_tally;
-        logic[15:0] tally[HISTORY_LEN:0];
+        logic[HISTORY_LEN:0][15:0] tally;
         always_ff @(posedge clk_130mhz) begin
             if (rst_in) begin
                 frame_cnt <= 0;
                 max_tally <= 1;
                 log_max_tally <= 0;
-            end else if (hcount_in == SCREEN_WIDTH && vcount_in == SCREEN_HEIGHT) begin
+            end else if (hcount_in == SCREEN_WIDTH-1 && vcount_in == SCREEN_HEIGHT-1) begin
                 frame_cnt <= frame_cnt + 1;
                 if (frame_cnt == 5'b1_1111) begin
-                    tally <= {tally[HISTORY_LEN-1:1], 16'b0};
+                    tally <= {tally[HISTORY_LEN:1], 16'b0};
                 end
-            end else if (frame_cnt == 0) begin
+            end else if (frame_cnt == 5'b0) begin
                 tally[0] <= tally[0] + is_alive_in;
                 if (tally[0] > max_tally) begin
-                    max_tally <= max_tally < 1;
+                    max_tally <= max_tally << 1;
                     log_max_tally <= log_max_tally + 1;
                 end
             end
