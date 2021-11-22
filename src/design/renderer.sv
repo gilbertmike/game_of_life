@@ -387,14 +387,12 @@ module fence_render (input wire clk_130mhz,
             if (rst_in) begin
                 pix_out <= 0;
             end else begin
-                if (hcount_in > VIEW_PIX) begin
-                    if (hcount_in == VIEW_PIX + GAME_BOARD_DIS)
-                        pix_out <= 12'hFFF;
-                    else if (vcount_in == TOP_DIS)
-                        pix_out <= 12'hFFF;
-                    else 
-                        pix_out <= 12'h0;
-                end
+                if (hcount_in == VIEW_PIX)
+                    pix_out <= 12'hFFF;
+                else if (hcount_in > VIEW_PIX && vcount_in == TOP_DIS)
+                    pix_out <= 12'hFFF;
+                else 
+                    pix_out <= 12'h0;
             end
        end
 endmodule
