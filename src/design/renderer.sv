@@ -81,16 +81,13 @@ module renderer(input wire clk_130mhz, input wire clk_65mhz, rst_in,
                        .vcount_in(vcount1),
                        .is_alive_in(is_alive),
                        .pix_out(stat_pix));
-<<<<<<< HEAD
-=======
-                       
+            
     logic[11:0] fence_pix;
     fence_render fence_r(.clk_130mhz(clk_130mhz),
                          .rst_in(rst_in),
                          .hcount_in(hcount1),
                          .vcount_in(vcount1),
                          .pix_out(fence_pix));
->>>>>>> ff6075a1209d29b2f7ca4f4a0b3d07d797e4978a
 
     // Third stage pipeline --------------------------------------------------
 
@@ -99,11 +96,7 @@ module renderer(input wire clk_130mhz, input wire clk_65mhz, rst_in,
             pix_out <= 0;
             done_out <= 1;
         end else begin
-<<<<<<< HEAD
-            pix_out <= blank1 ? 0 : cell_pix + cursor_pix + stat_pix;
-=======
             pix_out <= blank1 ? 0 : cell_pix + cursor_pix + stat_pix + fence_pix;
->>>>>>> ff6075a1209d29b2f7ca4f4a0b3d07d797e4978a
             done_out <= (vcount1 >= SCREEN_HEIGHT);
         end
         {hsync_out, vsync_out} <= {~hsync1, ~vsync1};
