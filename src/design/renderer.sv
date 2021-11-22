@@ -174,40 +174,71 @@ endmodule
  * Output:
  *  - returns pix_out corresponding to the graph
  */
-module stat_render(input wire clk_in,
-                 input wire[10:0] hcount_in,
-                 input wire[9:0] vcount_in,
-                 input wire is_alive_in,
-                 output logic[11:0] pix_out);
-        parameter GRAPH_HEIGHT = 200, GRAPH_WIDTH = 200;
-        parameter GRAPH_ORIGIN_x = 800, GRAPH_ORIGIN_Y = 100; //origin positioned at top left corner
-                 
-        //draws x and y axis for graph
-        always_comb begin
-            if ((vcount_in == GRAPH_ORIGIN_Y + GRAPH_HEIGHT) &&
-               (hcount_in > GRAPH_ORIGIN_x && hcount_in < (GRAPH_ORIGIN_x + GRAPH_WIDTH))) begin
-               pix_out = 12'hFFF;
-            end else if (hcount_in == GRAPH_ORIGIN_x && 
-                (vcount_in > GRAPH_ORIGIN_Y && vcount_in < (GRAPH_ORIGIN_Y + GRAPH_HEIGHT))) begin
-                pix_out = 12'hFFF;
-            end
-        end
-                 
-        logic[15:0] tally;
-        always_ff @(posedge clk_in) begin
-            if (hcount_in == SCREEN_WIDTH && vcount_in == SCREEN_HEIGHT) begin
-                tally <= 0;
-            end else if (is_alive_in) tally <= tally + 1;
-        end
-endmodule
-
-//helper module for stat_render, draws the lines within the graph
-module line_drawer(input wire clk_in,
+module stat_render(input wire clk_130mhz,
+                   input wire rst_in,
                    input wire[10:0] hcount_in,
                    input wire[9:0] vcount_in,
-                   input wire[15:0] tally_in,
-                   output wire[11:0] line_pix_out);
-       
+                   input wire is_alive_in,
+                   output logic[11:0] pix_out);
+        parameter GRAPH_HEIGHT = 200, GRAPH_WIDTH = 200;
+        parameter HISTORY_LEN = 25;
+        parameter GRAPH_ORIGIN_X = 800, GRAPH_ORIGIN_Y = 16; //origin positioned at top left corner
+        localparam SAMPLE_PIX = GRAPH_WIDTH / HISTORY_LEN;
+        localparam LOG_HISTORY_LEN = $clog2(HISTORY_LEN) + 1;
+        localparam LOG_SAMPLE_PIX = $clog2(SAMPLE_PIX);
+
+        logic[4:0] frame_cnt;
+        logic[15:0] max_tally;
+        logic[4:0] log_max_tally;
+        logic[15:0] tally[HISTORY_LEN:0];
+        always_ff @(posedge clk_130mhz) begin
+            if (rst_in) begin
+                frame_cnt <= 0;
+                max_tally <= 1;
+                log_max_tally <= 0;
+            end else if (hcount_in == SCREEN_WIDTH && vcount_in == SCREEN_HEIGHT) begin
+                frame_cnt <= frame_cnt + 1;
+                if (frame_cnt == 5'b1_1111) begin
+                    tally <= {tally[HISTORY_LEN-1:1], 16'b0};
+                end
+            end else if (frame_cnt == 0) begin
+                tally[0] <= tally[0] + is_alive_in;
+                if (tally[0] > max_tally) begin
+                    max_tally <= max_tally < 1;
+                    log_max_tally <= log_max_tally + 1;
+                end
+            end
+        end
+        
+        logic[LOG_HISTORY_LEN-1:0] sample_idx;
+        logic[9:0] sample_height;
+        logic[9:0] sample_vcount;
+        logic in_range_x, in_range_y, on_point;
+        always_comb begin
+            in_range_x = hcount_in > GRAPH_ORIGIN_X
+                && hcount_in < (GRAPH_ORIGIN_X + GRAPH_WIDTH);
+            in_range_y = vcount_in > GRAPH_ORIGIN_Y
+                && vcount_in < (GRAPH_ORIGIN_Y + GRAPH_HEIGHT);
+            sample_idx = (hcount_in - GRAPH_ORIGIN_X) >> LOG_SAMPLE_PIX;
+            sample_height =
+                (GRAPH_HEIGHT * tally[sample_idx]) << log_max_tally;
+            sample_vcount = GRAPH_ORIGIN_Y + GRAPH_HEIGHT - sample_height;
+            on_point = vcount_in == sample_vcount;
+        end
+
+        //draws x and y axis for graph
+        always_ff @(posedge clk_130mhz) begin
+            if ((vcount_in == GRAPH_ORIGIN_Y + GRAPH_HEIGHT)
+                    && in_range_x) begin
+                pix_out <= 12'hFFF;
+            end else if (hcount_in == GRAPH_ORIGIN_X && in_range_y) begin
+                pix_out <= 12'hFFF;
+            end else if (in_range_x && in_range_y && on_point) begin
+                pix_out <= 12'hFFF;
+            end else begin
+                pix_out <= 12'h0;
+            end
+        end
 endmodule
 `default_nettype wire
 
