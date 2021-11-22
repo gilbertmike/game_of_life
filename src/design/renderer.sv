@@ -20,8 +20,7 @@ module renderer(input wire clk_130mhz, rst_in,
                 output logic[11:0] pix_out,
                 output logic vsync_out, hsync_out);
     logic clk_65mhz;
-//    clk_wiz_65mhz clk_65(.clk_in1(clk_130mhz), .clk_out1(clk_65mhz));
-    assign clk_65mhz = clk_130mhz;
+    clk_wiz_65mhz clk_65(.clk_in1(clk_130mhz), .clk_out1(clk_65mhz));
 
     //initiate xvga instance
     logic [10:0] hcount0;
@@ -243,7 +242,6 @@ module cursor_render(input wire clk_130mhz,
             pix_out <= 12'b0;
     end
 endmodule
-
 `default_nettype wire
 
 `default_nettype none

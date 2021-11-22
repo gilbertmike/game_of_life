@@ -25,7 +25,8 @@ module top_level_tb;
         // Start test
         #20;
         sw[15] = 0;
+        btnu = 1;
         btnc = 1;
-        #100;
+        #1000;
     end
 endmodule

@@ -1,14 +1,13 @@
 `default_nettype none
-module top_level#(parameter LOG_DEBOUNCE_COUNT=26,
-                  parameter LOG_WAIT_COUNT=20)
+module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
+                  parameter LOG_WAIT_COUNT=25)
                  (input wire clk_100mhz,
                   input wire btnc, btnu, btnl, btnr, btnd,
                   input wire[15:0] sw,
                   output logic[3:0] vga_r, vga_g, vga_b,
                   output logic vga_hs, vga_vs);
     logic clk_130mhz;
-//    clk_wiz_130mhz clk_130(.clk_in1(clk_100mhz), .clk_out1(clk_130mhz));
-    assign clk_130mhz = clk_100mhz;
+    clk_wiz_130mhz clk_130(.clk_in1(clk_100mhz), .clk_out1(clk_130mhz));
 
     pos_t cursor_x, cursor_y, view_x, view_y;
     speed_t speed;
@@ -53,16 +52,15 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=26,
 
     life_logic life_logic(
         .clk_in(clk_130mhz), .rst_in(sw[15]), .start_in(logic_start),
-        .speed_in(speed),
-        .cursor_x_in(cursor_x), .cursor_y_in(cursor_y),
+        .speed_in(speed), .cursor_x_in(cursor_x), .cursor_y_in(cursor_y),
         .cursor_click_in(click), .data_r_in(logic_data_r),
         .addr_r_out(logic_addr_r), .addr_w_out(logic_addr_w),
         .wr_en_out(logic_wr_en), .data_w_out(logic_data_w),
         .done_out(logic_done));
 
     ila_0 ila(.clk(clk_130mhz), .probe0({logic_done, render_done, logic_start, buf_swap}), .probe1(logic_addr_w),
-          .probe2(logic_addr_r), .probe3(logic_wr_en),
-          .probe4({btnu, btnd, btnc, btnl, btnr}), .probe5(speed));
+          .probe2(logic_addr_r), .probe3(cursor_x),
+          .probe4(cursor_y), .probe5(speed));
 
 endmodule
 `default_nettype wire

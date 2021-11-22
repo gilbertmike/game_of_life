@@ -2,7 +2,7 @@
 
 `default_nettype none
 module user_interface#(parameter LOG_DEBOUNCE_COUNT = 20,
-                       parameter LOG_WAIT_COUNT = 26)
+                       parameter LOG_WAIT_COUNT = 25)
                       (input wire clk_in, rst_in,
                        input wire[15:0] sw_in,
                        input wire btnd_in, btnc_in, btnu_in, btnl_in, btnr_in,
