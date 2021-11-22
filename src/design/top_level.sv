@@ -12,7 +12,7 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
 
     logic logic_done, render_done, db_ready;
     logic logic_start, buf_swap;
-    synchronizer sync(.clk_in(clk_130mhz), .rst_in(sw[15]),
+    synchronizer sync(.clk_in(clk_65mhz), .rst_in(sw[15]),
                       .logic_done_in(logic_done),
                       .render_done_in(render_done),
                       .buf_ready_in(db_ready),
@@ -21,12 +21,12 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
 
     pos_t cursor_x, cursor_y, view_x, view_y;
     speed_t speed;
-    logic click;
+    logic click, click0;
     user_interface#(LOG_DEBOUNCE_COUNT, LOG_WAIT_COUNT) ui(
-        .clk_in(clk_130mhz), .rst_in(sw[15]), .logic_done_in(logic_done),
+        .clk_in(clk_65mhz), .rst_in(sw[15]), .logic_done_in(logic_done),
         .btnd_in(btnd), .btnc_in(btnc), .btnl_in(btnl), .btnr_in(btnr),
         .btnu_in(btnu), .sw_in(sw), .speed_out(speed), .cursor_x_out(cursor_x),
-        .cursor_y_out(cursor_y), .click_out(click), .view_x_out(view_x),
+        .cursor_y_out(cursor_y), .click_out(click0), .view_x_out(view_x),
         .view_y_out(view_y));
 
     addr_t render_addr_r;
@@ -34,9 +34,10 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
     addr_t logic_addr_r, logic_addr_w;
     data_t logic_data_r, logic_data_w;
     logic logic_wr_en;
+    assign click = 1;
 
     double_buffer db(
-        .clk_130mhz(clk_130mhz), .rst_in(sw[15]), .swap_in(buf_swap),
+        .clk_130mhz(clk_65mhz), .rst_in(sw[15]), .swap_in(buf_swap),
         .render_addr_r(render_addr_r),
         .logic_addr_r(logic_addr_r), .logic_addr_w(logic_addr_w),
         .logic_wr_en(logic_wr_en), .render_data_r(render_data_r),
@@ -44,7 +45,7 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
         .ready_out(db_ready));
 
     renderer renderer(
-        .clk_130mhz(clk_130mhz), .clk_65mhz(clk_65mhz), .rst_in(sw[15]),
+        .clk_130mhz(clk_65mhz), .clk_65mhz(clk_65mhz), .rst_in(sw[15]),
         .data_in(render_data_r), .view_x_in(view_x), .view_y_in(view_y),
         .cursor_x_in(cursor_x), .cursor_y_in(cursor_y),
         .done_out(render_done), .addr_r_out(render_addr_r),
@@ -52,7 +53,7 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
         .hsync_out(vga_hs));
 
     life_logic life_logic(
-        .clk_in(clk_130mhz), .rst_in(sw[15]), .start_in(logic_start),
+        .clk_in(clk_65mhz), .rst_in(sw[15]), .start_in(logic_start),
         .speed_in(speed), .cursor_x_in(cursor_x), .cursor_y_in(cursor_y),
         .cursor_click_in(click), .data_r_in(logic_data_r),
         .addr_r_out(logic_addr_r), .addr_w_out(logic_addr_w),

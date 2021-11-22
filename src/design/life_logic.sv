@@ -123,7 +123,6 @@ module logic_fetcher(input wire clk_in,
         word_idx = x_out[LOG_WORD_SIZE-1:0] - 1;
     end
 
-    // control state machine
     logic last_x_in_row, last_y_in_col;
     assign last_x_in_row = x_out == BOARD_SIZE-NUM_PE;
     assign last_y_in_col = y_out == BOARD_SIZE-1;
@@ -134,35 +133,27 @@ module logic_fetcher(input wire clk_in,
             done_out <= 0;
             stall_out <= 1;
 
-            cache_state <= SEARCH;  // lookup from cache
-        end else begin
-            if (!stall_out) begin  // ready to move
-                if (last_x_in_row && last_y_in_col) begin
-                    x_out <= 0;
-                    y_out <= 0;
-                    done_out <= 1;
-                    stall_out <= 1;
-                end else if (last_x_in_row) begin
-                    x_out <= 0;
-                    y_out <= y_out + 1;
-                    stall_out <= 1;
-                end else begin
-                    x_out <= x_out + STRIDE;
-                    stall_out <= 1;
-                end
-                cache_state <= SEARCH;
-            end
-        end
-    end
-
-    // cache logic
-    always_ff @(posedge clk_in) begin
-        if (start_in) begin
             {buffer[2], buffer[1], buffer[0]} <= {3*2*WORD_SIZE{1'b0}};
             buf_addr <= 0;
             addr_out <= 0;
             valid <= 0;
-        end else begin
+            cache_state <= SEARCH;  // lookup from cache
+        end else if (!stall_out) begin  // ready to move
+            if (last_x_in_row && last_y_in_col) begin
+                x_out <= 0;
+                y_out <= 0;
+                done_out <= 1;
+                stall_out <= 1;
+            end else if (last_x_in_row) begin
+                x_out <= 0;
+                y_out <= y_out + 1;
+                stall_out <= 1;
+            end else begin
+                x_out <= x_out + STRIDE;
+                stall_out <= 1;
+            end
+            cache_state <= SEARCH;
+        end else begin  // cache state machine
             case (cache_state)
                 SEARCH: begin
                     if (cache_hit) begin

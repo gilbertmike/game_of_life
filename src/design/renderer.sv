@@ -11,7 +11,7 @@
  * Timing:
  *  - Three stage pipeline.
  */
-module renderer(input wire clk_130mhz, input wire clk_65mhz, rst_in,
+module renderer(input wire clk_65mhz, rst_in,
                 input wire[WORD_SIZE-1:0] data_in,
                 input wire[LOG_BOARD_SIZE-1:0] view_x_in, view_y_in,
                 input wire[LOG_BOARD_SIZE-1:0] cursor_x_in, cursor_y_in,
@@ -33,7 +33,7 @@ module renderer(input wire clk_130mhz, input wire clk_65mhz, rst_in,
 
     // Sample user input so no update happens within a frame
     pos_t view_x, view_y, cursor_x, cursor_y;
-    always_ff @(posedge clk_130mhz) begin
+    always_ff @(posedge clk_65mhz) begin
         if (hcount0 == 0 && vcount0 == 0) begin
             view_x <= view_x_in;
             view_y <= view_y_in;
@@ -46,7 +46,7 @@ module renderer(input wire clk_130mhz, input wire clk_65mhz, rst_in,
     // First stage pipeline (counted from hcount, vcount) --------------------
 
     logic is_alive;
-    render_fetch fetch(.clk_130mhz(clk_130mhz),
+    render_fetch fetch(.clk_130mhz(clk_65mhz),
                        .hcount_in(hcount0), .vcount_in(vcount0),
                        .view_x_in(view_x), .view_y_in(view_y),
                        .data_r_in(data_in), .addr_r_out(addr_r_out),
@@ -57,25 +57,25 @@ module renderer(input wire clk_130mhz, input wire clk_65mhz, rst_in,
     logic[10:0] hcount1;
     logic[9:0] vcount1;
     logic hsync1, vsync1, blank1;
-    always_ff @(posedge clk_130mhz) begin
+    always_ff @(posedge clk_65mhz) begin
         hcount1 <= hcount0;
         vcount1 <= vcount0;
         {hsync1, vsync1, blank1} <= {hsync0, vsync0, blank0};
     end
 
     logic[11:0] cell_pix;
-    cell_render cell_r(.clk_130mhz(clk_130mhz), .is_alive_in(is_alive),
+    cell_render cell_r(.clk_130mhz(clk_65mhz), .is_alive_in(is_alive),
                        .hcount_in(hcount1), .vcount_in(vcount1),
                        .pix_out(cell_pix));
 
     logic[11:0] cursor_pix;
-    cursor_render cursor_r(.clk_130mhz(clk_130mhz), .hcount_in(hcount1),
+    cursor_render cursor_r(.clk_130mhz(clk_65mhz), .hcount_in(hcount1),
                            .vcount_in(vcount1), .view_x_in(view_x),
                            .view_y_in(view_y), .cursor_x_in(cursor_x),
                            .cursor_y_in(cursor_y), .pix_out(cursor_pix));
                            
     logic[11:0] stat_pix;
-    stat_render stat_r(.clk_130mhz(clk_130mhz),
+    stat_render stat_r(.clk_130mhz(clk_65mhz),
                        .rst_in(rst_in),
                        .hcount_in(hcount1),
                        .vcount_in(vcount1),
@@ -83,7 +83,7 @@ module renderer(input wire clk_130mhz, input wire clk_65mhz, rst_in,
                        .pix_out(stat_pix));
             
     logic[11:0] fence_pix;
-    fence_render fence_r(.clk_130mhz(clk_130mhz),
+    fence_render fence_r(.clk_130mhz(clk_65mhz),
                          .rst_in(rst_in),
                          .hcount_in(hcount1),
                          .vcount_in(vcount1),
@@ -91,12 +91,17 @@ module renderer(input wire clk_130mhz, input wire clk_65mhz, rst_in,
 
     // Third stage pipeline --------------------------------------------------
 
-    always_ff @(posedge clk_130mhz) begin
+    always_ff @(posedge clk_65mhz) begin
         if (rst_in) begin
             pix_out <= 0;
             done_out <= 1;
         end else begin
-            pix_out <= blank1 ? 0 : cell_pix + cursor_pix + stat_pix + fence_pix;
+            pix_out[11:8] <= blank1 ? 0 : cell_pix[11:8] + cursor_pix[11:8]
+                                          + stat_pix[11:8] + fence_pix[11:8];
+            pix_out[7:3] <= blank1 ? 0 : cell_pix[7:3] + cursor_pix[7:3]
+                                         + stat_pix[7:3] + fence_pix[7:3];
+            pix_out[3:0] <= blank1 ? 0 : cell_pix[3:0] + cursor_pix[3:0]
+                                         + stat_pix[3:0] + fence_pix[3:0];
             done_out <= (vcount1 >= SCREEN_HEIGHT);
         end
         {hsync_out, vsync_out} <= {~hsync1, ~vsync1};
