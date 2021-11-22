@@ -50,25 +50,36 @@ module double_buffer(input wire clk_130mhz,
             buf0_addra = logic_addr_w;
             buf0_data_wa = logic_data_w;
             buf0_wr_ena = logic_wr_en;
+
             buf0_addrb = 0;
 
             buf1_addra = logic_addr_r;
-            logic_data_r = buf1_data_ra;
-            buf1_addrb = render_addr_r;
-            render_data_r = buf1_data_rb;
+            buf1_data_wa = 0;
             buf1_wr_ena = 0;
+
+            buf1_addrb = render_addr_r;
         end else begin
             buf1_addra = logic_addr_w;
             buf1_data_wa = logic_data_w;
             buf1_wr_ena = logic_wr_en;
+
             buf1_addrb = 0;
 
             buf0_addra = logic_addr_r;
-            logic_data_r = buf0_data_ra;
-            buf0_addrb = render_addr_r;
-            render_data_r = buf0_data_rb;
-            buf0_wr_ena = 0;
             buf0_data_wa = 0;
+            buf0_wr_ena = 0;
+
+            buf0_addrb = render_addr_r;
+        end
+    end
+
+    always_ff @(posedge clk_130mhz) begin
+        if (buffer_toggle) begin
+            logic_data_r <= buf1_data_ra;
+            render_data_r <= buf1_data_rb;
+        end else begin
+            logic_data_r <= buf0_data_ra;
+            render_data_r <= buf0_data_rb;
         end
     end
 endmodule
