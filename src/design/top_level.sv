@@ -7,7 +7,7 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
                   output logic[3:0] vga_r, vga_g, vga_b,
                   output logic vga_hs, vga_vs);
     logic clk_25mhz;
-    clk_wiz_0 clk_25(.clk_in1(clk_100mhz), .clk_out1(clk_25mhz));
+    clk_wiz clk_gen(.clk_100mhz(clk_100mhz), .clk_25mhz(clk_25mhz));
 
     logic logic_done, render_done, db_ready;
     logic logic_start, buf_swap;
