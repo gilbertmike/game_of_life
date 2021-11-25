@@ -11,7 +11,7 @@
  * Timing:
  *  - Three stage pipeline.
  */
-module renderer(input wire clk_65mhz, rst_in,
+module renderer(input wire clk_in, vclk_in, rst_in,
                 input wire[WORD_SIZE-1:0] data_in,
                 input wire[LOG_BOARD_SIZE-1:0] view_x_in, view_y_in,
                 input wire[LOG_BOARD_SIZE-1:0] cursor_x_in, cursor_y_in,
@@ -24,7 +24,7 @@ module renderer(input wire clk_65mhz, rst_in,
     logic [9:0] vcount0;
     logic hsync0, vsync0, blank0;
     xvga xvga1(
-        .clk_65mhz(clk_65mhz), .rst_in(rst_in),
+        .vclk_in(vclk_in),
         .hcount_out(hcount0),
         .vcount_out(vcount0),
         .vsync_out(vsync0),
@@ -33,7 +33,7 @@ module renderer(input wire clk_65mhz, rst_in,
 
     // Sample user input so no update happens within a frame
     pos_t view_x, view_y, cursor_x, cursor_y;
-    always_ff @(posedge clk_65mhz) begin
+    always_ff @(posedge clk_in) begin
         if (hcount0 == 0 && vcount0 == 0) begin
             view_x <= view_x_in;
             view_y <= view_y_in;
@@ -42,11 +42,10 @@ module renderer(input wire clk_65mhz, rst_in,
         end
     end
 
-
     // First stage pipeline (counted from hcount, vcount) --------------------
 
     logic is_alive;
-    render_fetch fetch(.clk_130mhz(clk_65mhz),
+    render_fetch fetch(.clk_in(clk_in),
                        .hcount_in(hcount0), .vcount_in(vcount0),
                        .view_x_in(view_x), .view_y_in(view_y),
                        .data_r_in(data_in), .addr_r_out(addr_r_out),
@@ -57,25 +56,25 @@ module renderer(input wire clk_65mhz, rst_in,
     logic[10:0] hcount1;
     logic[9:0] vcount1;
     logic hsync1, vsync1, blank1;
-    always_ff @(posedge clk_65mhz) begin
+    always_ff @(posedge clk_in) begin
         hcount1 <= hcount0;
         vcount1 <= vcount0;
         {hsync1, vsync1, blank1} <= {hsync0, vsync0, blank0};
     end
 
     logic[11:0] cell_pix;
-    cell_render cell_r(.clk_130mhz(clk_65mhz), .is_alive_in(is_alive),
+    cell_render cell_r(.clk_in(clk_in), .is_alive_in(is_alive),
                        .hcount_in(hcount1), .vcount_in(vcount1),
                        .pix_out(cell_pix));
 
     logic[11:0] cursor_pix;
-    cursor_render cursor_r(.clk_130mhz(clk_65mhz), .hcount_in(hcount1),
+    cursor_render cursor_r(.clk_in(clk_in), .hcount_in(hcount1),
                            .vcount_in(vcount1), .view_x_in(view_x),
                            .view_y_in(view_y), .cursor_x_in(cursor_x),
                            .cursor_y_in(cursor_y), .pix_out(cursor_pix));
                            
     logic[11:0] stat_pix;
-    stat_render stat_r(.clk_130mhz(clk_65mhz),
+    stat_render stat_r(.clk_in(clk_in),
                        .rst_in(rst_in),
                        .hcount_in(hcount1),
                        .vcount_in(vcount1),
@@ -83,7 +82,7 @@ module renderer(input wire clk_65mhz, rst_in,
                        .pix_out(stat_pix));
             
     logic[11:0] fence_pix;
-    fence_render fence_r(.clk_130mhz(clk_65mhz),
+    fence_render fence_r(.clk_in(clk_in),
                          .rst_in(rst_in),
                          .hcount_in(hcount1),
                          .vcount_in(vcount1),
@@ -91,7 +90,7 @@ module renderer(input wire clk_65mhz, rst_in,
 
     // Third stage pipeline --------------------------------------------------
 
-    always_ff @(posedge clk_65mhz) begin
+    always_ff @(posedge clk_in) begin
         if (rst_in) begin
             pix_out <= 0;
             done_out <= 1;
@@ -108,73 +107,80 @@ module renderer(input wire clk_65mhz, rst_in,
     end
 endmodule
 
-//xvga module copied from lab 3: change parameters!
-module xvga(input wire clk_65mhz, rst_in,
+//////////////////////////////////////////////////////////////////////////////////
+// Update: 8/8/2019 GH 
+// Create Date: 10/02/2015 02:05:19 AM
+// Module Name: xvga
+//
+// xvga: Generate VGA display signals (1024 x 768 @ 60Hz)
+//
+//                              ---- HORIZONTAL -----     ------VERTICAL -----
+//                              Active                    Active
+//                    Freq      Video   FP  Sync   BP      Video   FP  Sync  BP
+//   640x480, 60Hz    25.175    640     16    96   48       480    11   2    31
+//   800x600, 60Hz    40.000    800     40   128   88       600     1   4    23
+//   1024x768, 60Hz   65.000    1024    24   136  160       768     3   6    29
+//   1280x1024, 60Hz  108.00    1280    48   112  248       768     1   3    38
+//   1280x720p 60Hz   75.25     1280    72    80  216       720     3   5    30
+//   1920x1080 60Hz   148.5     1920    88    44  148      1080     4   5    36
+//
+// change the clock frequency, front porches, sync's, and back porches to create 
+// other screen resolutions
+////////////////////////////////////////////////////////////////////////////////
+
+module xvga(input wire vclk_in,
             output logic [10:0] hcount_out,    // pixel number on current line
             output logic [9:0] vcount_out,     // line number
-            output logic vsync_out, hsync_out, blank_out);
-    parameter DISPLAY_WIDTH = 1024;
-    parameter DISPLAY_HEIGHT = 768;
+            output logic vsync_out, hsync_out,
+            output logic blank_out);
 
-    parameter  H_FP = 24;                 // horizontal front porch
-    parameter  H_SYNC_PULSE = 136;        // horizontal sync
-    parameter  H_BP = 160;                // horizontal back porch
+   parameter DISPLAY_WIDTH  = 640;      // display width
+   parameter DISPLAY_HEIGHT = 480;       // number of lines
 
-    parameter  V_FP = 3;                  // vertical front porch
-    parameter  V_SYNC_PULSE = 6;          // vertical sync 
-    parameter  V_BP = 29;                 // vertical back porch
+   parameter  H_FP = 16;                 // horizontal front porch
+   parameter  H_SYNC_PULSE = 96;        // horizontal sync
+   parameter  H_BP = 48;                // horizontal back porch
 
-    // horizontal: 1344 pixels total
-    // display 1024 pixels per line
-    logic hblank,vblank;
-    logic hsyncon,hsyncoff,hreset,hblankon;
-    assign hblankon = (hcount_out == (DISPLAY_WIDTH - 1));    
-    assign hsyncon = (hcount_out == (DISPLAY_WIDTH + H_FP - 1));  //1047
-    assign hsyncoff =
-        (hcount_out == (DISPLAY_WIDTH + H_FP + H_SYNC_PULSE - 1));  // 1183
-    assign hreset =
-        (hcount_out == (DISPLAY_WIDTH + H_FP + H_SYNC_PULSE + H_BP - 1));  //1343
+   parameter  V_FP = 11;                  // vertical front porch
+   parameter  V_SYNC_PULSE = 2;          // vertical sync 
+   parameter  V_BP = 31;                 // vertical back porch
 
-    // vertical: 806 lines total
-    // display 768 lines
-    logic vsyncon,vsyncoff,vreset,vblankon;
-    assign vblankon = hreset & (vcount_out == (DISPLAY_HEIGHT - 1));   // 767 
-    assign vsyncon =
-        hreset & (vcount_out == (DISPLAY_HEIGHT + V_FP - 1));  // 771
-    assign vsyncoff = hreset
-        & (vcount_out == (DISPLAY_HEIGHT + V_FP + V_SYNC_PULSE - 1));  // 777
-    assign vreset = hreset
-        & (vcount_out == (DISPLAY_HEIGHT + V_FP + V_SYNC_PULSE + V_BP - 1)); // 805
+   // horizontal: 1344 pixels total
+   // display 1024 pixels per line
+   logic hblank,vblank;
+   logic hsyncon,hsyncoff,hreset,hblankon;
+   assign hblankon = (hcount_out == (DISPLAY_WIDTH -1));    
+   assign hsyncon = (hcount_out == (DISPLAY_WIDTH + H_FP - 1));  //1047
+   assign hsyncoff = (hcount_out == (DISPLAY_WIDTH + H_FP + H_SYNC_PULSE - 1));  // 1183
+   assign hreset = (hcount_out == (DISPLAY_WIDTH + H_FP + H_SYNC_PULSE + H_BP - 1));  //1343
 
-    // sync and blanking
-    logic next_hblank,next_vblank;
-    assign next_hblank = hreset ? 0 : hblankon ? 1 : hblank;
-    assign next_vblank = vreset ? 0 : vblankon ? 1 : vblank;
-    always_ff @(posedge clk_65mhz) begin
-        if (rst_in) begin
-            hcount_out <= 0;
-            hblank <= 0;
-            hsync_out <= 0;
-            vcount_out <= 0;
-            vblank <= 0;
-            vsync_out <= 0;
-            blank_out <= 0;
-        end else begin
-            hcount_out <= hreset ? 0 : hcount_out + 1;
-            hblank <= next_hblank;
-            hsync_out <= hsyncon ? 0 : hsyncoff ? 1 : hsync_out;  // active low
-    
-            vcount_out <= hreset ? (vreset ? 0 : vcount_out + 1) : vcount_out;
-            vblank <= next_vblank;
-            vsync_out <= vsyncon ? 0 : vsyncoff ? 1 : vsync_out;  // active low
-    
-            blank_out <= next_vblank | (next_hblank & ~hreset);
-        end
-    end
+   // vertical: 806 lines total
+   // display 768 lines
+   logic vsyncon,vsyncoff,vreset,vblankon;
+   assign vblankon = hreset & (vcount_out == (DISPLAY_HEIGHT - 1));   // 767 
+   assign vsyncon = hreset & (vcount_out == (DISPLAY_HEIGHT + V_FP - 1));  // 771
+   assign vsyncoff = hreset & (vcount_out == (DISPLAY_HEIGHT + V_FP + V_SYNC_PULSE - 1));  // 777
+   assign vreset = hreset & (vcount_out == (DISPLAY_HEIGHT + V_FP + V_SYNC_PULSE + V_BP - 1)); // 805
+
+   // sync and blanking
+   logic next_hblank,next_vblank;
+   assign next_hblank = hreset ? 0 : hblankon ? 1 : hblank;
+   assign next_vblank = vreset ? 0 : vblankon ? 1 : vblank;
+   always_ff @(posedge vclk_in) begin
+      hcount_out <= hreset ? 0 : hcount_out + 1;
+      hblank <= next_hblank;
+      hsync_out <= hsyncon ? 0 : hsyncoff ? 1 : hsync_out;  // active low
+
+      vcount_out <= hreset ? (vreset ? 0 : vcount_out + 1) : vcount_out;
+      vblank <= next_vblank;
+      vsync_out <= vsyncon ? 0 : vsyncoff ? 1 : vsync_out;  // active low
+
+      blank_out <= next_vblank | (next_hblank & ~hreset);
+   end
 endmodule
 
 //render_fetch module, to fetch info on squares within view window
-module render_fetch (input wire clk_130mhz,
+module render_fetch (input wire clk_in,
                      input wire[10:0] hcount_in,
                      input wire[9:0] vcount_in,
                      input wire[LOG_BOARD_SIZE-1:0] view_x_in, view_y_in,
@@ -195,7 +201,7 @@ module render_fetch (input wire clk_130mhz,
         board_cell_y = view_y_in + view_cell_y;
     end
 
-    always_ff @(posedge clk_130mhz) begin
+    always_ff @(posedge clk_in) begin
         addr_r_out <= board_cell_y * WORDS_PER_ROW
             + board_cell_x >> LOG_WORD_SIZE;
         is_alive_out <=
@@ -220,7 +226,7 @@ endmodule
  * Timing:
  *  - Stage one pipeline.
  */
-module cursor_render(input wire clk_130mhz,
+module cursor_render(input wire clk_in,
                      input wire[10:0] hcount_in,
                      input wire[9:0] vcount_in,
                      input wire[LOG_BOARD_SIZE-1:0] view_x_in,
@@ -248,7 +254,7 @@ module cursor_render(input wire clk_130mhz,
                         || (vcount_in == cursor_y_in_pix + CELL_SIZE-1);
     end
 
-    always_ff @(posedge clk_130mhz) begin
+    always_ff @(posedge clk_in) begin
         if ((at_x_edge && in_y_range) || (at_y_edge && in_x_range))
             pix_out <= CURSOR_COLOR;
         else
@@ -265,7 +271,7 @@ endmodule
  * Output:
  *  - returns pix_out corresponding to the graph
  */
-module stat_render(input wire clk_130mhz,
+module stat_render(input wire clk_in,
                    input wire rst_in,
                    input wire[10:0] hcount_in,
                    input wire[9:0] vcount_in,
@@ -282,7 +288,7 @@ module stat_render(input wire clk_130mhz,
         logic[15:0] max_tally;
         logic[4:0] log_max_tally;
         logic[HISTORY_LEN:0][15:0] tally;
-        always_ff @(posedge clk_130mhz) begin
+        always_ff @(posedge clk_in) begin
             if (rst_in) begin
                 frame_cnt <= 0;
                 max_tally <= 1;
@@ -318,7 +324,7 @@ module stat_render(input wire clk_130mhz,
         end
 
         //draws x and y axis for graph
-        always_ff @(posedge clk_130mhz) begin
+        always_ff @(posedge clk_in) begin
             if ((vcount_in == GRAPH_ORIGIN_Y + GRAPH_HEIGHT)
                     && in_range_x) begin
                 pix_out <= 12'hFFF;
@@ -346,12 +352,12 @@ endmodule
 // * Timing:
 // *  - Stage one pipeline.
 // */
-module cell_render(input wire clk_130mhz,
+module cell_render(input wire clk_in,
                    input wire is_alive_in,
                    input wire[10:0] hcount_in,
                    input wire[9:0] vcount_in,
                    output logic[11:0] pix_out);
-        always_ff @(posedge clk_130mhz) begin
+        always_ff @(posedge clk_in) begin
             if ((hcount_in < VIEW_SIZE*CELL_SIZE)
                     && (vcount_in < VIEW_SIZE*CELL_SIZE)) begin
                 if (is_alive_in)
@@ -371,7 +377,7 @@ endmodule
 // * 
 // * Timing: 
 // - stage 2 pipeline
-module fence_render (input wire clk_130mhz,
+module fence_render (input wire clk_in,
                      input wire rst_in,
                      input wire[10:0] hcount_in,
                      input wire[9:0] vcount_in,
@@ -380,7 +386,7 @@ module fence_render (input wire clk_130mhz,
        localparam GAME_BOARD_DIS = 30, TOP_DIS = SCREEN_HEIGHT >> 1;
        parameter VIEW_PIX = VIEW_SIZE * CELL_SIZE;
        
-       always_ff @(posedge clk_130mhz) begin
+       always_ff @(posedge clk_in) begin
             if (rst_in) begin
                 pix_out <= 0;
             end else begin

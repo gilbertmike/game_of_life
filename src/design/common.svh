@@ -3,8 +3,8 @@
 
 // Memory and game state parameters
 parameter LOG_WORD_SIZE = 4;
-parameter LOG_BOARD_SIZE = 10;
-parameter LOG_VIEW_SIZE = 6;
+parameter LOG_BOARD_SIZE = 5;
+parameter LOG_VIEW_SIZE = 4;
 parameter LOG_NUM_PE = 0;
 parameter NUM_PE = 2**LOG_NUM_PE;
 parameter WINDOW_WIDTH = 2 + NUM_PE;

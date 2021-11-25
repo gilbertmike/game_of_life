@@ -113,15 +113,23 @@ module logic_fetcher(input wire clk_in,
     logic[0:2*WORD_SIZE-1] buffer[2:0];
 
     // addresses of first and last words making up a window.
-    addr_t word_addr;
+    addr_t word_addr, word_addr_last;
     logic[LOG_WORD_SIZE-1:0] word_idx;  // index of x_out - 1 in cache
     logic cache_hit;
     always_comb begin
-        word_addr = (((y_out - 1) << LOG_BOARD_SIZE) + x_out - 1)
-            >> LOG_WORD_SIZE;
+        word_addr = ((y_out - 1) << (LOG_BOARD_SIZE-LOG_WORD_SIZE))
+            + ((x_out + {LOG_BOARD_SIZE{1'b1}}) >> LOG_WORD_SIZE);
+        word_addr_last = ((y_out - 1) << (LOG_BOARD_SIZE-LOG_WORD_SIZE))
+            + ((x_out + WINDOW_WIDTH-1) >> LOG_WORD_SIZE);
         cache_hit = (word_addr == buf_addr) && valid;
         word_idx = x_out[LOG_WORD_SIZE-1:0] - 1;
     end
+
+    logic under_x, over_x, under_y, over_y;
+    assign under_x = x_out < WORD_SIZE;
+    assign over_x = x_out >= BOARD_SIZE-WORD_SIZE;
+    assign under_y = y_out == 0;
+    assign over_y = y_out == BOARD_SIZE-1;
 
     logic last_x_in_row, last_y_in_col;
     assign last_x_in_row = x_out == BOARD_SIZE-NUM_PE;
@@ -138,7 +146,7 @@ module logic_fetcher(input wire clk_in,
             addr_out <= 0;
             valid <= 0;
             cache_state <= SEARCH;  // lookup from cache
-        end else if (!stall_out) begin  // ready to move
+        end else if (!stall_out && !done_out) begin  // ready to move
             if (last_x_in_row && last_y_in_col) begin
                 x_out <= 0;
                 y_out <= 0;
@@ -153,7 +161,7 @@ module logic_fetcher(input wire clk_in,
                 stall_out <= 1;
             end
             cache_state <= SEARCH;
-        end else begin  // cache state machine
+        end else if (!done_out) begin  // cache state machine
             case (cache_state)
                 SEARCH: begin
                     if (cache_hit) begin
@@ -176,37 +184,39 @@ module logic_fetcher(input wire clk_in,
                 FETCH_ROW_0: begin
                     addr_out <= addr_out + WORDS_PER_ROW;
                     cache_state <= FETCH_ROW_1;
-
-                    buffer[2][0+:WORD_SIZE] <= data_in;
+                    buffer[2][0+:WORD_SIZE] <= under_x || under_y ? 0
+                                                                  : data_in;
                 end
                 FETCH_ROW_1: begin
-                    addr_out <= addr_out - 2*WORDS_PER_ROW + 1;
+                    addr_out <= word_addr_last;
                     cache_state <= FETCH_ROW_2;
 
-                    buffer[1][0+:WORD_SIZE] <= data_in;
+                    buffer[1][0+:WORD_SIZE] <= under_x ? 0 : data_in;
                 end
                 FETCH_ROW_2: begin
                     addr_out <= addr_out + WORDS_PER_ROW;
                     cache_state <= FETCH_ROW_3;
 
-                    buffer[0][0+:WORD_SIZE] <= data_in;
+                    buffer[0][0+:WORD_SIZE] <= under_x || over_y ? 0 :data_in;
                     valid <= 1;
                 end
                 FETCH_ROW_3: begin
                     addr_out <= addr_out + WORDS_PER_ROW;
                     cache_state <= FETCH_ROW_4;
 
-                    buffer[2][WORD_SIZE-1+:WORD_SIZE] <= data_in;
+                    buffer[2][WORD_SIZE-1+:WORD_SIZE] <=
+                        over_x || under_y ? 0 : data_in;
                 end
                 FETCH_ROW_4: begin
                     cache_state <= FETCH_ROW_5;
 
-                    buffer[1][WORD_SIZE-1+:WORD_SIZE] <= data_in;
+                    buffer[1][WORD_SIZE-1+:WORD_SIZE] <= over_x ? 0 : data_in;
                 end
                 FETCH_ROW_5: begin
                     cache_state <= SEARCH;
 
-                    buffer[0][WORD_SIZE-1+:WORD_SIZE] <= data_in;
+                    buffer[0][WORD_SIZE-1+:WORD_SIZE] <=
+                        over_x || over_y ? 0 :data_in;
                     valid <= 1;
                 end
                 READY: begin /* wait */ end
@@ -266,7 +276,7 @@ module logic_rule(input wire clk_in, stall_in, done_in,
 
     always_ff @(posedge clk_in) begin
         for (integer i = NUM_PE-1; i >= 0; i--) begin
-            if (x_in + NUM_PE-1-i == cursor_x_in && y_in == cursor_y_in
+            if (((x_in + NUM_PE-1-i) == cursor_x_in) && (y_in == cursor_y_in)
                     && cursor_click_in && !stall_in)
                 state_out[i] <= !old_state[i];
             else if (!stall_in)

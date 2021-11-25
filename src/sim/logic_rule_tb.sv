@@ -1,7 +1,8 @@
 `timescale 1ns / 1ps
 
-module logic_rule_tb;
+`include "common.svh"
 
+module logic_rule_tb;
     logic clk;
     always #5 clk = !clk;
 
