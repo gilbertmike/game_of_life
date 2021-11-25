@@ -411,7 +411,7 @@ endmodule
 // picture_blob: display a picture, copied from lab 3
 //
 //////////////////////////////////////////////////
-module picture_blob#(parameter WIDTH = 256, HEIGHT = 240, COLOR = 12'hFFF)
+module picture_blob#(parameter WIDTH = 384, HEIGHT = 240, COLOR = 12'hFFF)
                     (input wire clk_in,
                      input wire [10:0] hcount_in,
                      input wire [9:0] vcount_in,
