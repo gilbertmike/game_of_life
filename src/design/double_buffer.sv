@@ -18,10 +18,10 @@ module double_buffer(input wire clk_in,
     logic buf0_wr_ena;
     addr_t buf0_addrb;
     data_t buf0_data_rb;
-    bram_buffer0 buf0(.clka(clk_in), .addra(buf0_addra), .dina(buf0_data_wa),
-                      .douta(buf0_data_ra), .wea(buf0_wr_ena),
-                      .clkb(clk_in), .addrb(buf0_addrb), .dinb(0),
-                      .doutb(buf0_data_rb), .web(0));
+    buf0 b0(.clka(clk_in), .addra(buf0_addra), .dina(buf0_data_wa),
+            .douta(buf0_data_ra), .wea(buf0_wr_ena),
+            .clkb(clk_in), .addrb(buf0_addrb), .dinb(0),
+            .doutb(buf0_data_rb), .web(0));
 
     addr_t buf1_addra;
     data_t buf1_data_ra;
@@ -29,10 +29,10 @@ module double_buffer(input wire clk_in,
     logic buf1_wr_ena;
     addr_t buf1_addrb;
     data_t buf1_data_rb;
-    bram_buffer1 buf1(.clka(clk_in), .addra(buf1_addra), .dina(buf1_data_wa),
-                      .douta(buf1_data_ra), .wea(buf1_wr_ena),
-                      .clkb(clk_in), .addrb(buf1_addrb), .dinb(0),
-                      .doutb(buf1_data_rb), .web(0));
+    buf1 b1(.clka(clk_in), .addra(buf1_addra), .dina(buf1_data_wa),
+            .douta(buf1_data_ra), .wea(buf1_wr_ena),
+            .clkb(clk_in), .addrb(buf1_addrb), .dinb(0),
+            .doutb(buf1_data_rb), .web(0));
 
     // buffer_toggle decides if logic writes to buf0 or buf1
     logic buffer_toggle;

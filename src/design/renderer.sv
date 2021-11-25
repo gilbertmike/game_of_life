@@ -192,7 +192,7 @@ module render_fetch (input wire clk_in,
     pos_t view_cell_x, view_cell_y;
     // cell in board coord
     pos_t board_cell_x, board_cell_y;
-    
+
     always_comb begin
         //shift from pixel coord to cell coord
         view_cell_x = hcount_in >> LOG_CELL_SIZE;
@@ -207,7 +207,6 @@ module render_fetch (input wire clk_in,
         is_alive_out <=
             data_r_in[WORD_SIZE-1-board_cell_x[LOG_WORD_SIZE-1:0]];
     end
-    
 endmodule
 `default_nettype wire
 
@@ -277,65 +276,62 @@ module stat_render(input wire clk_in,
                    input wire[9:0] vcount_in,
                    input wire is_alive_in,
                    output logic[11:0] pix_out);
-        parameter GRAPH_HEIGHT = 200, GRAPH_WIDTH = 200;
-        parameter HISTORY_LEN = 25;
-        parameter GRAPH_ORIGIN_X = 800, GRAPH_ORIGIN_Y = 32; //origin positioned at top left corner
-        localparam SAMPLE_PIX = GRAPH_WIDTH / HISTORY_LEN;
-        localparam LOG_HISTORY_LEN = $clog2(HISTORY_LEN) + 1;
-        localparam LOG_SAMPLE_PIX = $clog2(SAMPLE_PIX);
+    localparam SAMPLE_PIX = GRAPH_WIDTH / HISTORY_LEN;
+    localparam LOG_HISTORY_LEN = $clog2(HISTORY_LEN) + 1;
+    localparam LOG_SAMPLE_PIX = $clog2(SAMPLE_PIX);
 
-        logic[4:0] frame_cnt;
-        logic[15:0] max_tally;
-        logic[4:0] log_max_tally;
-        logic[HISTORY_LEN:0][15:0] tally;
-        always_ff @(posedge clk_in) begin
-            if (rst_in) begin
-                frame_cnt <= 0;
-                max_tally <= 1;
-                log_max_tally <= 0;
-            end else if (hcount_in == SCREEN_WIDTH-1 && vcount_in == SCREEN_HEIGHT-1) begin
-                frame_cnt <= frame_cnt + 1;
-                if (frame_cnt == 5'b1_1111) begin
-                    tally <= {tally[HISTORY_LEN:1], 16'b0};
-                end
-            end else if (frame_cnt == 5'b0) begin
-                tally[0] <= tally[0] + is_alive_in;
-                if (tally[0] > max_tally) begin
-                    max_tally <= max_tally << 1;
-                    log_max_tally <= log_max_tally + 1;
-                end
+    logic[4:0] frame_cnt;
+    logic[15:0] max_tally;
+    logic[4:0] log_max_tally;
+    logic[HISTORY_LEN:0][15:0] tally;
+    always_ff @(posedge clk_in) begin
+        if (rst_in) begin
+            frame_cnt <= 0;
+            max_tally <= 1;
+            log_max_tally <= 0;
+        end else if (hcount_in == SCREEN_WIDTH-1 && vcount_in == SCREEN_HEIGHT-1) begin
+            frame_cnt <= frame_cnt + 1;
+            if (frame_cnt == 5'b1_1111) begin
+                tally <= {tally[HISTORY_LEN:1], 16'b0};
+            end
+        end else if (frame_cnt == 5'b0) begin
+            tally[0] <= tally[0] + is_alive_in;
+            if (tally[0] > max_tally) begin
+                max_tally <= max_tally << 1;
+                log_max_tally <= log_max_tally + 1;
             end
         end
-        
-        logic[LOG_HISTORY_LEN-1:0] sample_idx;
-        logic[9:0] sample_height;
-        logic[9:0] sample_vcount;
-        logic in_range_x, in_range_y, on_point;
-        always_comb begin
-            in_range_x = hcount_in > GRAPH_ORIGIN_X
-                && hcount_in < (GRAPH_ORIGIN_X + GRAPH_WIDTH);
-            in_range_y = vcount_in > GRAPH_ORIGIN_Y
-                && vcount_in < (GRAPH_ORIGIN_Y + GRAPH_HEIGHT);
-            sample_idx = (hcount_in - GRAPH_ORIGIN_X) >> LOG_SAMPLE_PIX;
-            sample_height =
-                (GRAPH_HEIGHT * tally[sample_idx]) << log_max_tally;
-            sample_vcount = GRAPH_ORIGIN_Y + GRAPH_HEIGHT - sample_height;
-            on_point = vcount_in == sample_vcount;
-        end
+    end
+    
+    logic[LOG_HISTORY_LEN-1:0] sample_idx;
+    logic[9:0] sample_height;
+    logic[9:0] sample_vcount;
+    logic in_range_x, in_range_y, on_point;
+    always_comb begin
+        in_range_x = hcount_in > GRAPH_ORIGIN_X
+            && hcount_in < (GRAPH_ORIGIN_X + GRAPH_WIDTH);
+        in_range_y = vcount_in > GRAPH_ORIGIN_Y
+            && vcount_in < (GRAPH_ORIGIN_Y + GRAPH_HEIGHT);
+        sample_idx = (hcount_in - GRAPH_ORIGIN_X) >> LOG_SAMPLE_PIX;
+        sample_height =
+            (GRAPH_HEIGHT * tally[sample_idx]) << log_max_tally;
+        sample_vcount = GRAPH_ORIGIN_Y + GRAPH_HEIGHT - sample_height;
+        on_point = vcount_in == sample_vcount;
+    end
 
-        //draws x and y axis for graph
-        always_ff @(posedge clk_in) begin
-            if ((vcount_in == GRAPH_ORIGIN_Y + GRAPH_HEIGHT)
-                    && in_range_x) begin
-                pix_out <= 12'hFFF;
-            end else if (hcount_in == GRAPH_ORIGIN_X && in_range_y) begin
-                pix_out <= 12'hFFF;
-            end else if (in_range_x && in_range_y && on_point) begin
-                pix_out <= 12'hFFF;
-            end else begin
-                pix_out <= 12'h0;
-            end
+    //draws x and y axis for graph
+    always_ff @(posedge clk_in) begin
+        if ((vcount_in == GRAPH_ORIGIN_Y + GRAPH_HEIGHT)
+                && in_range_x) begin
+            pix_out <= 12'hFFF;
+        end else if (hcount_in == GRAPH_ORIGIN_X && in_range_y) begin
+            pix_out <= 12'hFFF;
+        end else if (in_range_x && in_range_y && on_point) begin
+            pix_out <= 12'hFFF;
+        end else begin
+            pix_out <= 12'h0;
         end
+    end
 endmodule
 `default_nettype wire
 
@@ -357,17 +353,16 @@ module cell_render(input wire clk_in,
                    input wire[10:0] hcount_in,
                    input wire[9:0] vcount_in,
                    output logic[11:0] pix_out);
-        always_ff @(posedge clk_in) begin
-            if ((hcount_in < VIEW_SIZE*CELL_SIZE)
-                    && (vcount_in < VIEW_SIZE*CELL_SIZE)) begin
-                if (is_alive_in)
-                   pix_out <= CELL_COLOR;
-                else
-                   pix_out <= 12'h0;
-            end else
+    always_ff @(posedge clk_in) begin
+        if ((hcount_in < VIEW_SIZE*CELL_SIZE)
+                && (vcount_in < VIEW_SIZE*CELL_SIZE)) begin
+            if (is_alive_in)
+                pix_out <= CELL_COLOR;
+            else
                 pix_out <= 12'h0;
-        end         
-   
+        end else
+            pix_out <= 12'h0;
+    end         
 endmodule
 
 `default_nettype none
@@ -382,22 +377,21 @@ module fence_render (input wire clk_in,
                      input wire[10:0] hcount_in,
                      input wire[9:0] vcount_in,
                      output logic[11:0] pix_out);
-                     
-       localparam GAME_BOARD_DIS = 30, TOP_DIS = SCREEN_HEIGHT >> 1;
-       parameter VIEW_PIX = VIEW_SIZE * CELL_SIZE;
-       
-       always_ff @(posedge clk_in) begin
-            if (rst_in) begin
-                pix_out <= 0;
-            end else begin
-                if (hcount_in == VIEW_PIX)
-                    pix_out <= 12'hFFF;
-                else if (hcount_in > VIEW_PIX && vcount_in == TOP_DIS)
-                    pix_out <= 12'hFFF;
-                else 
-                    pix_out <= 12'h0;
-            end
+   localparam GAME_BOARD_DIS = 30, TOP_DIS = SCREEN_HEIGHT >> 1;
+   parameter VIEW_PIX = VIEW_SIZE * CELL_SIZE;
+
+   always_ff @(posedge clk_in) begin
+       if (rst_in) begin
+           pix_out <= 0;
+       end else begin
+           if (hcount_in == VIEW_PIX)
+               pix_out <= 12'hFFF;
+           else if (hcount_in > VIEW_PIX && vcount_in == TOP_DIS)
+               pix_out <= 12'hFFF;
+           else 
+               pix_out <= 12'h0;
        end
+   end
 endmodule
 
 `default_nettype wire

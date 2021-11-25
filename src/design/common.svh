@@ -24,15 +24,22 @@ parameter MAX_SPEED = 2**LOG_MAX_SPEED;
 
 
 // Drawing parameters
-parameter SCREEN_WIDTH = 1024;
-parameter SCREEN_HEIGHT = 512;
+parameter VIEW_SIZE_PIX = 256;
+parameter SCREEN_WIDTH = 640;
+parameter SCREEN_HEIGHT = 480;
+parameter LOG_VIEW_SIZE_PIX = $clog2(VIEW_SIZE_PIX);
 parameter LOG_SCREEN_WIDTH = $clog2(SCREEN_WIDTH);
 parameter LOG_SCREEN_HEIGHT = $clog2(SCREEN_HEIGHT);
-parameter LOG_CELL_SIZE = LOG_SCREEN_HEIGHT - LOG_VIEW_SIZE;
+parameter LOG_CELL_SIZE = LOG_VIEW_SIZE_PIX - LOG_VIEW_SIZE;
 parameter CELL_SIZE = 2**LOG_CELL_SIZE;
 
 parameter CELL_COLOR = 12'hFFF;
 parameter CURSOR_COLOR = 12'h0F0;
+
+// Statistics render parameter
+parameter GRAPH_HEIGHT = 200, GRAPH_WIDTH = 200;
+parameter HISTORY_LEN = 25;
+parameter GRAPH_ORIGIN_X = 300, GRAPH_ORIGIN_Y = 20; //origin positioned at top left corner
 
 // Commonly used data types
 typedef logic[LOG_MAX_ADDR-1:0] addr_t;
