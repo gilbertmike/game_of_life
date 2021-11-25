@@ -2,21 +2,22 @@
 
 `default_nettype none
 module user_interface#(parameter LOG_DEBOUNCE_COUNT = 20,
-                       parameter LOG_WAIT_COUNT = 26)
+                       parameter LOG_WAIT_COUNT = 25)
                       (input wire clk_in, rst_in,
                        input wire[15:0] sw_in,
                        input wire btnd_in, btnc_in, btnu_in, btnl_in, btnr_in,
+                       input wire logic_done_in,
                        output logic click_out,
                        output logic[LOG_MAX_SPEED-1:0] speed_out,
                        output logic[LOG_BOARD_SIZE-1:0] cursor_x_out,
                        output logic[LOG_BOARD_SIZE-1:0] cursor_y_out,
                        output logic[LOG_BOARD_SIZE-1:0] view_x_out,
                        output logic[LOG_BOARD_SIZE-1:0] view_y_out);
-    logic btnd_deb, btnu_deb, btnl_deb, btnr_deb;
+    logic btnd_deb, btnu_deb, btnc_deb, btnl_deb, btnr_deb;
     debounce#(LOG_DEBOUNCE_COUNT) btn_debouncers [4:0] (
         .clk_in(clk_in), .rst_in(rst_in),
         .noisy_in({btnd_in, btnc_in, btnu_in, btnl_in, btnr_in}),
-        .clean_out({btnd, click_out, btnu, btnl, btnr}));
+        .clean_out({btnd_deb, btnc_deb, btnu_deb, btnl_deb, btnr_deb}));
 
     logic btnd, btnu, btnl, btnr;
     btn_pwd#(LOG_WAIT_COUNT) btn_pwds [3:0] (
@@ -32,14 +33,24 @@ module user_interface#(parameter LOG_DEBOUNCE_COUNT = 20,
     assign speed_out = sw[LOG_MAX_SPEED-1:0];
 
     // Board viewer logic
+    logic click_past;
+    logic logic_done_past;
     always_ff @(posedge clk_in) begin
         if (rst_in) begin
+            logic_done_past <= 0;
+            click_past <= 0;
+            click_out <= 0;
             cursor_x_out <= BOARD_SIZE / 2;
             cursor_y_out <= BOARD_SIZE / 2;
             view_x_out <= (BOARD_SIZE - VIEW_SIZE) / 2;
             view_y_out <= (BOARD_SIZE - VIEW_SIZE) / 2;
-            click_out <= 0;
         end else begin
+            // Assert click_out only for one frame
+            logic_done_past <= logic_done_in;
+            if (!logic_done_past && logic_done_in) begin
+                click_past <= btnc_deb;
+                click_out <= !click_past && btnc_deb;
+            end
             if (btnd) begin
                 cursor_y_out <= cursor_y_out + 1;
                 if (cursor_y_out == view_y_out + VIEW_SIZE - 1)
@@ -106,8 +117,8 @@ module btn_pwd#(parameter LOG_WAIT_COUNT = 26)
             move_out <= 0;
             count <= 0;
         end else if (btn_in) begin
-            move_out <= count == 0 || count == WAIT_COUNT;
-            count <= count == WAIT_COUNT ? count : count + 1;
+            move_out <= count == 0;
+            count <= count + 1;
         end
     end
 endmodule

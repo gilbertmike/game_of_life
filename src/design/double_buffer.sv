@@ -9,6 +9,7 @@ module double_buffer(input wire clk_in,
                      input wire[LOG_MAX_ADDR-1:0] logic_addr_w,
                      input wire[WORD_SIZE-1:0] logic_data_w,
                      input wire logic_wr_en,
+                     output logic ready_out,
                      output logic[WORD_SIZE-1:0] render_data_r,
                      output logic[WORD_SIZE-1:0] logic_data_r);
     addr_t buf0_addra;
@@ -36,10 +37,12 @@ module double_buffer(input wire clk_in,
     // buffer_toggle decides if logic writes to buf0 or buf1
     logic buffer_toggle;
     always_ff @(posedge clk_in) begin
-        if (rst_in)
+        if (rst_in) begin
             buffer_toggle <= 0;
-        else
+        end else begin
             buffer_toggle <= swap_in ? !buffer_toggle : buffer_toggle;
+            ready_out <= 1;
+        end
     end
 
     always_comb begin
@@ -48,21 +51,35 @@ module double_buffer(input wire clk_in,
             buf0_data_wa = logic_data_w;
             buf0_wr_ena = logic_wr_en;
 
+            buf0_addrb = 0;
+
             buf1_addra = logic_addr_r;
-            logic_data_r = buf1_data_ra;
-            buf1_addrb = render_addr_r;
-            render_data_r = buf1_data_rb;
+            buf1_data_wa = 0;
             buf1_wr_ena = 0;
+
+            buf1_addrb = render_addr_r;
         end else begin
             buf1_addra = logic_addr_w;
             buf1_data_wa = logic_data_w;
             buf1_wr_ena = logic_wr_en;
 
+            buf1_addrb = 0;
+
             buf0_addra = logic_addr_r;
-            logic_data_r = buf0_data_ra;
-            buf0_addrb = render_addr_r;
-            render_data_r = buf0_data_rb;
+            buf0_data_wa = 0;
             buf0_wr_ena = 0;
+
+            buf0_addrb = render_addr_r;
+        end
+    end
+
+    always_ff @(posedge clk_in) begin
+        if (buffer_toggle) begin
+            logic_data_r <= buf1_data_ra;
+            render_data_r <= buf1_data_rb;
+        end else begin
+            logic_data_r <= buf0_data_ra;
+            render_data_r <= buf0_data_rb;
         end
     end
 endmodule

@@ -23,7 +23,7 @@ module double_buffer_tb;
     double_buffer db(.logic_addr_r(logic_addr_r), .logic_addr_w(logic_addr_w),
                      .logic_data_w(logic_data_w), .logic_wr_en(logic_wr_en),
                      .render_addr_r(render_addr_r), .swap_in(swap),
-                     .rst_in(rst), .clk_in(clk), .logic_data_r(logic_data_r),
+                     .rst_in(rst), .clk_130mhz(clk), .logic_data_r(logic_data_r),
                      .render_data_r(render_data_r));
 
     initial begin
@@ -52,6 +52,10 @@ module double_buffer_tb;
         swap = 0;
         render_addr_r = 0;
         logic_addr_r = 0;
+        #10;
+        render_addr_r = 1;
+        #10;
+        render_addr_r = 0;
         #10;
         assert(logic_data_r == 1);
         assert(render_data_r == 1);
