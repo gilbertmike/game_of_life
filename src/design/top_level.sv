@@ -11,13 +11,14 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
                   output logic[3:0] vga_r, vga_g, vga_b,
                   output logic vga_hs, vga_vs,
                   output logic sd_reset, sd_cd, sd_sck, sd_cmd,
-                  output logic[3:0] sd_dat);
+                  output logic[3:0] sd_dat,
+                  inout wire ps2_clk, ps2_data);
     logic clk_25mhz;
     clk_wiz clk_gen(.clk_100mhz(clk_100mhz), .clk_25mhz(clk_25mhz));
 
     logic logic_done, render_done, db_ready;
     logic logic_start, buf_swap;
-    synchronizer sync(.clk_in(clk_25mhz), .rst_in(sw[15]),
+    synchronizer sync(.clk_in(clk_100mhz), .rst_in(sw[15]),
                       .logic_done_in(logic_done), .render_done_in(render_done),
                       .buf_ready_in(db_ready),
                       .logic_start_out(logic_start),
@@ -29,7 +30,8 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
     user_interface#(LOG_DEBOUNCE_COUNT, LOG_WAIT_COUNT) ui(
         .clk_in(clk_100mhz), .rst_in(sw[15]),
         .btnd_in(btnd), .btnc_in(btnc), .btnl_in(btnl), .btnr_in(btnr),
-        .btnu_in(btnu), .sw_in(sw), .speed_out(speed), .cursor_x_out(cursor_x),
+        .btnu_in(btnu), .sw_in(sw), .ps2_clk(ps2_clk), .ps2_data(ps2_data),
+        .speed_out(speed), .cursor_x_out(cursor_x),
         .cursor_y_out(cursor_y), .click_out(click), .view_x_out(view_x),
         .view_y_out(view_y));
 
