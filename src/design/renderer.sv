@@ -89,7 +89,7 @@ module renderer(input wire clk_in, vclk_in, rst_in,
                          .pix_out(fence_pix));
 
     logic[11:0] text_pix;
-    picture_blob pic_r(.clk_in(clk_in),
+    text_render pic_r(.clk_in(clk_in),
                        .hcount_in(hcount1),
                        .vcount_in(vcount1),
                        .pix_out(text_pix));
@@ -408,10 +408,10 @@ endmodule
 `default_nettype none
 ////////////////////////////////////////////////////
 //
-// picture_blob: display a picture, copied from lab 3
+// text_render based off of picture_lab from lab 3
 //
 //////////////////////////////////////////////////
-module picture_blob#(parameter WIDTH = 384, HEIGHT = 240, COLOR = 12'hFFF)
+module text_render#(parameter WIDTH = 384, HEIGHT = 240, COLOR = 12'hFFF)
                     (input wire clk_in,
                      input wire [10:0] hcount_in,
                      input wire [9:0] vcount_in,
