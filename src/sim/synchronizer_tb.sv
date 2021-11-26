@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+`include "common.svh"
+
 module synchronizer_tb;
     
     //initialize inputs
@@ -11,7 +13,6 @@ module synchronizer_tb;
 
     //initialize outputs
     logic logic_start;
-    logic render_start;
     logic buf_swap;
 
     //initialize uut
@@ -21,7 +22,6 @@ module synchronizer_tb;
                      .render_done_in(render_done),
                      .buf_ready_in(buf_ready),
                      .logic_start_out(logic_start),
-                     .render_start_out(render_start),
                      .buf_swap_out(buf_swap));
 
     //clock

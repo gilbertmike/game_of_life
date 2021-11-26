@@ -28,3 +28,16 @@ module synchronizer(input wire clk_in, rst_in,
     end
 endmodule
 `default_nettype wire
+
+`default_nettype none
+module manual_sync(input wire clk_in, rst_in, buf_sw_in, logic_sw_in,
+                   output logic logic_start_out, buf_swap_out);
+    logic buf_sw_last, logic_sw_last;
+    always_ff @(posedge clk_in) begin
+        buf_sw_last <= buf_sw_in;
+        logic_sw_last <= logic_sw_in;
+        buf_swap_out <= !buf_sw_last && buf_sw_in;
+        logic_start_out <= !logic_sw_last && logic_sw_in;
+    end
+endmodule
+`default_nettype wire

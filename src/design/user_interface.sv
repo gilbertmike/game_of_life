@@ -6,7 +6,6 @@ module user_interface#(parameter LOG_DEBOUNCE_COUNT = 20,
                       (input wire clk_in, rst_in,
                        input wire[15:0] sw_in,
                        input wire btnd_in, btnc_in, btnu_in, btnl_in, btnr_in,
-                       input wire logic_done_in,
                        output logic click_out,
                        output logic[LOG_MAX_SPEED-1:0] speed_out,
                        output logic[LOG_BOARD_SIZE-1:0] cursor_x_out,
@@ -45,12 +44,7 @@ module user_interface#(parameter LOG_DEBOUNCE_COUNT = 20,
             view_x_out <= (BOARD_SIZE - VIEW_SIZE) / 2;
             view_y_out <= (BOARD_SIZE - VIEW_SIZE) / 2;
         end else begin
-            // Assert click_out only for one frame
-            logic_done_past <= logic_done_in;
-            if (!logic_done_past && logic_done_in) begin
-                click_past <= btnc_deb;
-                click_out <= !click_past && btnc_deb;
-            end
+            click_out <= btnc_deb;
             if (btnd) begin
                 cursor_y_out <= cursor_y_out + 1;
                 if (cursor_y_out == view_y_out + VIEW_SIZE - 1)
