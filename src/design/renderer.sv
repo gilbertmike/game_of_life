@@ -88,6 +88,12 @@ module renderer(input wire clk_in, vclk_in, rst_in,
                          .vcount_in(vcount1),
                          .pix_out(fence_pix));
 
+    logic[11:0] text_pix;
+    text_render pic_r(.clk_in(clk_in),
+                       .hcount_in(hcount1),
+                       .vcount_in(vcount1),
+                       .pix_out(text_pix));
+
     // Third stage pipeline --------------------------------------------------
 
     always_ff @(posedge clk_in) begin
@@ -96,11 +102,14 @@ module renderer(input wire clk_in, vclk_in, rst_in,
             done_out <= 1;
         end else begin
             pix_out[11:8] <= blank1 ? 0 : cell_pix[11:8] + cursor_pix[11:8]
-                                          + stat_pix[11:8] + fence_pix[11:8];
+                                          + stat_pix[11:8] + fence_pix[11:8]
+                                          + text_pix[11:8];
             pix_out[7:3] <= blank1 ? 0 : cell_pix[7:3] + cursor_pix[7:3]
-                                         + stat_pix[7:3] + fence_pix[7:3];
+                                         + stat_pix[7:3] + fence_pix[7:3]
+                                         + text_pix[7:3];
             pix_out[3:0] <= blank1 ? 0 : cell_pix[3:0] + cursor_pix[3:0]
-                                         + stat_pix[3:0] + fence_pix[3:0];
+                                         + stat_pix[3:0] + fence_pix[3:0]
+                                         + text_pix[3:0];
             done_out <= (vcount1 >= SCREEN_HEIGHT);
         end
         {hsync_out, vsync_out} <= {~hsync1, ~vsync1};
@@ -394,4 +403,40 @@ module fence_render (input wire clk_in,
    end
 endmodule
 
+`default_nettype wire
+
+`default_nettype none
+////////////////////////////////////////////////////
+//
+// text_render based off of picture_lab from lab 3
+//
+//////////////////////////////////////////////////
+module text_render#(parameter WIDTH = 384, HEIGHT = 240, COLOR = 12'hFFF)
+                    (input wire clk_in,
+                     input wire [10:0] hcount_in,
+                     input wire [9:0] vcount_in,
+                     output logic [11:0] pix_out);
+    localparam PATTERN_X_START = VIEW_SIZE_PIX;
+    localparam PATTERN_Y_START = SCREEN_HEIGHT / 2;
+
+    logic[16:0] image_addr;
+    logic image_bit;
+
+    // calculate rom address and read the location
+    assign image_addr = (vcount_in-PATTERN_Y_START) * WIDTH
+                      + (hcount_in-PATTERN_X_START);
+    pattern_text_rom  rom1(.clka(clk_in), .addra(image_addr), .douta(image_bit));
+
+    logic x_in_range, y_in_range;
+    assign x_in_range = (hcount_in >= PATTERN_X_START)
+                      && (hcount_in < (PATTERN_X_START + WIDTH));
+    assign y_in_range = (vcount_in >= PATTERN_Y_START)
+                      && (vcount_in < (PATTERN_Y_START + HEIGHT));
+    always_ff @ (posedge clk_in) begin
+        if (x_in_range && y_in_range && image_bit)
+            pix_out <= COLOR; // greyscale
+        else
+            pix_out <= 0;
+   end
+endmodule
 `default_nettype wire
