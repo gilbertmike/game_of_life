@@ -11,7 +11,7 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
 
     logic logic_done, render_done, db_ready;
     logic logic_start, buf_swap;
-    synchronizer sync(.clk_in(clk_25mhz), .rst_in(sw[15]),
+    synchronizer sync(.clk_in(clk_100mhz), .rst_in(sw[15]),
                       .logic_done_in(logic_done),
                       .render_done_in(render_done),
                       .buf_ready_in(db_ready),
