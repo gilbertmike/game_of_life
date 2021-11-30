@@ -1,11 +1,22 @@
 `default_nettype none
+
+`include "common.svh"
+
 module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
                   parameter LOG_WAIT_COUNT=25)
                  (input wire clk_100mhz,
                   input wire btnc, btnu, btnl, btnr, btnd,
                   input wire[15:0] sw,
+                  input wire sd_cd,
+                  inout wire [3:0] sd_dat,
+                  output logic sd_reset,
+                  output logic sd_sck,
+                  output logic sd_cmd,
                   output logic[3:0] vga_r, vga_g, vga_b,
-                  output logic vga_hs, vga_vs);
+                  output logic vga_hs, vga_vs,
+                  output logic aud_pwm,
+                  output logic aud_sd);
+
     logic clk_25mhz;
     clk_wiz clk_gen(.clk_100mhz(clk_100mhz), .clk_25mhz(clk_25mhz));
 
@@ -58,5 +69,17 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
         .addr_r_out(logic_addr_r), .addr_w_out(logic_addr_w),
         .wr_en_out(logic_wr_en), .data_w_out(logic_data_w),
         .done_out(logic_done));
+        
+
+    assign sd_dat[2:1] = 2'b11;
+    assign sd_reset = 0;
+
+    assign aud_sd = 1'b1;
+    audio audio(
+        .clk_in(clk_100mhz), .rst_in(sw[15]), .play_audio_in(1), 
+        .aud_pwm_out(aud_pwm), .sd_cd_in(sd_cd), .sd_dat(sd_dat),
+        .sd_reset_out(sd_reset), .sd_sck_out(sd_sck), 
+        .sd_cmd_out(sd_cmd), .clk_25mhz(clk_25mhz));
+        
 endmodule
 `default_nettype wire

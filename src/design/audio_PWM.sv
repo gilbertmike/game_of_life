@@ -1,11 +1,11 @@
 `timescale 1ns / 1ps
 // Audio PWM module.
 
-module audio_PWM(
+module audio_pwm(
     input clk, 			// 100MHz clock.
     input reset,		// Reset assertion.
     input [7:0] music_data,	// 8-bit music sample
-    output reg PWM_out		// PWM output. Connect this to ampPWM.
+    output reg pwm_out		// PWM output. Connect this to ampPWM.
     );
     
     
@@ -15,13 +15,13 @@ module audio_PWM(
     always @(posedge clk) begin
         if(reset) begin
             pwm_counter <= 0;
-            PWM_out <= 0;
+            pwm_out <= 0;
         end
         else begin
             pwm_counter <= pwm_counter + 1;
             
-            if(pwm_counter >= music_data) PWM_out <= 0;
-            else PWM_out <= 1;
+            if(pwm_counter >= music_data) pwm_out <= 0;
+            else pwm_out <= 1;
         end
     end
 endmodule
