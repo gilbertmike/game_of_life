@@ -371,7 +371,7 @@ module new_fsm(input wire clk_in,
                input wire rst_in,
                input wire start_in,
                input wire fetch_ready_in,
-               output logic[LOG_BOARD_SIZE-1:0] x_out, y_out
+               output logic[LOG_BOARD_SIZE-1:0] x_out, y_out,
                output logic done_out);
     always_ff @(posedge clk_in) begin
         if (rst_in) begin
@@ -402,15 +402,17 @@ module new_fetch(input wire clk_in,
                  output logic stall_out,
                  output logic ready_out,
                  output logic done_out);
-    enum logic[3:0] {
-        DONE, ADDR_CALC, PRE_ROW0, ROW0, ROW1, ROW2, ROW3, ROW4, ROW5 } state;
+    localparam WORDS_PER_ROW = BOARD_SIZE / WORD_SIZE;
+    enum logic[3:0] { DONE, ADDR_CALC, PRE_ROW0, ROW0, ROW1, ROW2, ROW3,
+                      ROW4, ROW5, WINDOW_OUT } state;
 
     logic[2*WINDOW_WIDTH-1:0] buffer[0:2];
 
     logic under_x, over_x, under_y, over_y;
     logic[LOG_WORD_SIZE-1:0] start_idx_in_word;
     logic[LOG_WORD_SIZE:0] start_idx;
-    logic[LOG_MAX_ADDR-1:0] row0_addr, row3_addr;
+    logic[LOG_MAX_ADDR-1:0] row1_addr, row2_addr, row3_addr,
+                            row4_addr, row5_addr;
     always_ff @(posedge clk_in) begin
         case (state)
             DONE: begin
@@ -459,8 +461,6 @@ module new_fetch(input wire clk_in,
                 state <= WINDOW_OUT;
             end
             WINDOW_OUT: begin
-                $assert (stall_out == 1 && ready_out == 0) 
-                else $error("WINDOW_OUT messed up :(");
                 window_out <= buffer[start_idx -: WINDOW_WIDTH];
                 stall_out <= 0;
                 ready_out <= 1;
@@ -472,11 +472,8 @@ module new_fetch(input wire clk_in,
                 end
             end
             ADDR_CALC: begin
-                $assert (ready_out == 1 && stall_out == 0) 
-                else $error("ADDR_CALC state messed up :(");
-
                 under_x <= (x_in == 0);
-                over_x <= (x_in >= BOARD_SIZE - (WINDOW - 2));
+                over_x <= (x_in >= BOARD_SIZE - (WINDOW_WIDTH - 2));
                 under_y <= (y_in == 0);
                 over_y <= (y_in == BOARD_SIZE - 1);
                 start_idx_in_word <=
