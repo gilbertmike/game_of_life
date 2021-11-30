@@ -13,7 +13,8 @@ module user_interface#(parameter LOG_DEBOUNCE_COUNT = 20,
                        output logic[LOG_BOARD_SIZE-1:0] view_x_out,
                        output logic[LOG_BOARD_SIZE-1:0] view_y_out,
                        inout wire ps2_clk, ps2_data);
-    localparam MOUSE_SENS = 16;
+    localparam MOUSE_CENTER = 12'd1024, MOUSE_SENS = 64;
+
     logic btnd_deb, btnu_deb, btnc_deb, btnl_deb, btnr_deb;
     debounce#(LOG_DEBOUNCE_COUNT) btn_debouncers [4:0] (
         .clk_in(clk_in), .rst_in(rst_in),
@@ -35,22 +36,26 @@ module user_interface#(parameter LOG_DEBOUNCE_COUNT = 20,
 
     logic[11:0] last_mouse_x, last_mouse_y;
     logic[11:0] mouse_x, mouse_y;
-    logic mouse_click;
+    logic mouse_click, mouse_setx, mouse_sety;
     MouseCtl mouse(.clk(clk_in), .rst(rst_in), .ps2_clk(ps2_clk),
+                   .value(MOUSE_CENTER), .setx(mouse_setx), .sety(mouse_sety),
                    .ps2_data(ps2_data), .xpos(mouse_x), .ypos(mouse_y),
                    .left(mouse_click));
     logic mouse_down, mouse_up, mouse_left, mouse_right;
+    logic mouse_moved;
     always_comb begin
         mouse_right = (mouse_x > last_mouse_x + MOUSE_SENS);
-        mouse_left = (mouse_x < last_mouse_x - MOUSE_SENS);
+        mouse_left = (mouse_x + MOUSE_SENS < last_mouse_x);
         mouse_down = (mouse_y > last_mouse_y + MOUSE_SENS);
-        mouse_up = (mouse_y < last_mouse_y - MOUSE_SENS);
+        mouse_up = (mouse_y + MOUSE_SENS < last_mouse_y);
+        mouse_moved = (mouse_up || mouse_down || mouse_left || mouse_right);
     end
     always_ff @(posedge clk_in) begin
         if (rst_in) begin
-        end else if (mouse_left || mouse_right) begin
+            last_mouse_x <= 0;;
+            last_mouse_y <= 0;
+        end else if (mouse_moved) begin
             last_mouse_x <= mouse_x;
-        end else if (mouse_up || mouse_down) begin
             last_mouse_y <= mouse_y;
         end
     end
@@ -67,26 +72,27 @@ module user_interface#(parameter LOG_DEBOUNCE_COUNT = 20,
             cursor_y_out <= BOARD_SIZE / 2;
             view_x_out <= (BOARD_SIZE - VIEW_SIZE) / 2;
             view_y_out <= (BOARD_SIZE - VIEW_SIZE) / 2;
-            last_mouse_x <= 0;
-            last_mouse_y <= 0;
         end else begin
             click_out <= btnc_deb || mouse_click;
-            if (btnd || mouse_down) begin
+            if (btnd) begin
                 cursor_y_out <= cursor_y_out + 1;
                 if (cursor_y_out == view_y_out + VIEW_SIZE - 1)
                     view_y_out <= view_y_out + 1;
-            end else if (btnu || mouse_up) begin
+            end else if (btnu) begin
                 cursor_y_out <= cursor_y_out - 1;
                 if (cursor_y_out == view_y_out)
                     view_y_out <= view_y_out - 1;
-            end else if (btnl || mouse_left) begin
+            end else if (btnl) begin
                 cursor_x_out <= cursor_x_out - 1;
                 if (cursor_x_out == view_x_out)
                     view_x_out <= view_x_out - 1;
-            end else if (btnr || mouse_right) begin
+            end else if (btnr) begin
                 cursor_x_out <= cursor_x_out + 1;
                 if (cursor_x_out == view_x_out + VIEW_SIZE - 1)
                     view_x_out <= view_x_out + 1;
+            end else if (mouse_moved) begin
+                cursor_x_out <= mouse_x / MOUSE_SENS;
+                cursor_y_out <= mouse_y / MOUSE_SENS;
             end
         end
     end

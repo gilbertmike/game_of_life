@@ -32,8 +32,7 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
         .btnd_in(btnd), .btnc_in(btnc), .btnl_in(btnl), .btnr_in(btnr),
         .btnu_in(btnu), .sw_in(sw), .ps2_clk(ps2_clk), .ps2_data(ps2_data),
         .speed_out(speed), .cursor_x_out(cursor_x),
-        .cursor_y_out(cursor_y), .click_out(click), .view_x_out(view_x),
-        .view_y_out(view_y));
+        .cursor_y_out(cursor_y), .click_out(click), .view_x_out(view_x));
 
     addr_t render_addr_r;
     data_t render_data_r;
