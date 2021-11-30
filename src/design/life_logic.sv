@@ -335,3 +335,174 @@ module logic_writeback(input wire clk_in, stall_in, start_in, done_in,
 endmodule
 `default_nettype wire
 
+`default_nettype none
+module new_logic(input wire clk_in,
+                 input wire rst_in,
+                 input wire start_in,
+                 input wire[LOG_MAX_SPEED-1:0] speed_in,
+                 input wire[WORD_SIZE-1:0] data_r_in,
+                 input wire[LOG_BOARD_SIZE-1:0] cursor_x_in,
+                 input wire[LOG_BOARD_SIZE-1:0] cursor_y_in,
+                 input wire cursor_click_in,
+                 output logic[LOG_MAX_ADDR-1:0] addr_r_out,
+                 output logic[LOG_MAX_ADDR-1:0] addr_w_out,
+                 output logic[WORD_SIZE-1:0] data_w_out,
+                 output logic wr_en_out,
+                 output logic done_out);
+    
+endmodule
+`default_nettype wire
+
+`default_nettype none
+/**
+ * new_fsm - Generates x_out, y_out, and done_out for fetch stage.
+ *
+ * Inputs:
+ *  - start_in and fetch_ready_in has to be pulses.
+ *
+ * Operations:
+ *  - When reset, done_out is 1
+ *  - When started, done_out is 0, x_out == 0, y_out == 0.
+ *  - When fetch_ready_in is asserted, x_out and y_out will increment in the
+ *    next cycle.
+ *  - done_out is asserted again when x_out and y_out wraps around to 0.
+ */
+module new_fsm(input wire clk_in,
+               input wire rst_in,
+               input wire start_in,
+               input wire fetch_ready_in,
+               output logic[LOG_BOARD_SIZE-1:0] x_out, y_out
+               output logic done_out);
+    always_ff @(posedge clk_in) begin
+        if (rst_in) begin
+            done_out <= 1;
+            x_out <= 0;
+            y_out <= 0;
+        end else if (done_out && start_in) begin
+            done_out <= 0;
+            x_out <= 0;
+            y_out <= 0;
+        end else if (!done_out && fetch_ready_in) begin
+            x_out <= x_out + 1;
+            y_out <= y_out + (x_out == BOARD_SIZE-1);
+            done_out <= (x_out == BOARD_SIZE-1) && (y_out == BOARD_SIZE-1);
+        end
+    end
+endmodule
+`default_nettype wire
+
+`default_nettype none
+module new_fetch(input wire clk_in,
+                 input wire done_in,
+                 input wire[WORD_SIZE-1:0] data_in,
+                 input wire[LOG_BOARD_SIZE-1:0] x_in, y_in,
+                 output logic[WINDOW_WIDTH-1:0] window_out[0:2],
+                 output logic[LOG_MAX_ADDR-1:0] addr_out,
+                 output logic[LOG_BOARD_SIZE-1:0] x_out, y_out,
+                 output logic stall_out,
+                 output logic ready_out,
+                 output logic done_out);
+    enum logic[3:0] {
+        DONE, ADDR_CALC, PRE_ROW0, ROW0, ROW1, ROW2, ROW3, ROW4, ROW5 } state;
+
+    logic[2*WINDOW_WIDTH-1:0] buffer[0:2];
+
+    logic under_x, over_x, under_y, over_y;
+    logic[LOG_WORD_SIZE-1:0] start_idx_in_word;
+    logic[LOG_WORD_SIZE:0] start_idx;
+    logic[LOG_MAX_ADDR-1:0] row0_addr, row3_addr;
+    always_ff @(posedge clk_in) begin
+        case (state)
+            DONE: begin
+                if (!done_in) begin
+                    ready_out <= 1;
+                    stall_out <= 1;
+                    state <= ADDR_CALC;
+                    done_out <= 0;
+                end
+            end
+            PRE_ROW0: begin
+                addr_out <= row1_addr;
+                state <= ROW0;
+            end
+            ROW0: begin
+                addr_out <= row2_addr;
+                buffer[0][2*WINDOW_WIDTH-1 -: WINDOW_WIDTH] <=
+                    under_x || under_y ? 0 : data_in;
+                state <= ROW1;
+            end
+            ROW1: begin
+                addr_out <= row3_addr;
+                buffer[1][2*WINDOW_WIDTH-1 -: WINDOW_WIDTH] <=
+                    under_x ? 0 : data_in;
+                state <= ROW2;
+            end
+            ROW2: begin
+                addr_out <= row4_addr;
+                buffer[2][2*WINDOW_WIDTH-1 -: WINDOW_WIDTH] <=
+                    under_x || over_y ? 0 : data_in;
+                state <= ROW3;
+            end
+            ROW3: begin
+                addr_out <= row5_addr;
+                buffer[0][WINDOW_WIDTH-1 : 0] <=
+                    under_x || under_y ? 0 : data_in;
+                state <= ROW4;
+            end
+            ROW4: begin
+                buffer[1][WINDOW_WIDTH-1 : 0] <= over_x ? 0 : data_in;
+                state <= ROW5;
+            end
+            ROW5: begin
+                buffer[2][WINDOW_WIDTH-1 : 0] <=
+                    over_x || over_y ? 0 : data_in;
+                state <= WINDOW_OUT;
+            end
+            WINDOW_OUT: begin
+                $assert (stall_out == 1 && ready_out == 0) 
+                else $error("WINDOW_OUT messed up :(");
+                window_out <= buffer[start_idx -: WINDOW_WIDTH];
+                stall_out <= 0;
+                ready_out <= 1;
+                if (done_in) begin
+                    done_out <= 1;
+                    state <= DONE;
+                end else begin
+                    state <= ADDR_CALC;
+                end
+            end
+            ADDR_CALC: begin
+                $assert (ready_out == 1 && stall_out == 0) 
+                else $error("ADDR_CALC state messed up :(");
+
+                under_x <= (x_in == 0);
+                over_x <= (x_in >= BOARD_SIZE - (WINDOW - 2));
+                under_y <= (y_in == 0);
+                over_y <= (y_in == BOARD_SIZE - 1);
+                start_idx_in_word <=
+                    WORD_SIZE - 1 - x_in[LOG_WORD_SIZE-1:0];
+                start_idx <= WINDOW_WIDTH + start_idx_in_word;
+
+                x_out <= x_in;
+                y_out <= y_in;
+
+                addr_out <= (y_in - 1) * WORDS_PER_ROW
+                            + ((x_in - 1) / WORD_SIZE);
+                row1_addr <= y_in * WORDS_PER_ROW + ((x_in - 1) / WORD_SIZE);
+                row2_addr <= (y_in + 1) * WORDS_PER_ROW
+                            + ((x_in - 1) / WORD_SIZE);
+                row3_addr <= (y_in - 1) * WORDS_PER_ROW
+                            + ((x_in + WINDOW_WIDTH - 2) / WORD_SIZE);
+                row4_addr <= y_in * WORDS_PER_ROW
+                            + ((x_in + WINDOW_WIDTH - 2) / WORD_SIZE);
+                row5_addr <= (y_in + 1) * WORDS_PER_ROW
+                            + ((x_in + WINDOW_WIDTH - 2) / WORD_SIZE);
+ 
+                ready_out <= 0;
+                stall_out <= 1;
+                state <= PRE_ROW0;
+            end
+        endcase
+    end
+endmodule
+`default_nettype wire

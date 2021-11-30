@@ -84,3 +84,32 @@ module double_buffer(input wire clk_in,
     end
 endmodule
 `default_nettype wire
+
+`default_nettype wire
+module test_split_buffer(input wire clk_in,
+                         input wire rst_in,
+                         input wire swap_in,
+                         input wire[LOG_MAX_ADDR-1:0] render_addr_r,
+                         input wire[LOG_MAX_ADDR-1:0] logic_addr_r,
+                         input wire[LOG_MAX_ADDR-1:0] logic_addr_w,
+                         input wire[WORD_SIZE-1:0] logic_data_w,
+                         input wire logic_wr_en,
+                         output logic ready_out,
+                         output logic[WORD_SIZE-1:0] render_data_r,
+                         output logic[WORD_SIZE-1:0] logic_data_r);
+    data_t logic_data_r0, render_data_r0;
+    buf0 b0(.clka(clk_in), .addra(logic_addr_r), .dina(0),
+            .douta(logic_data_r0), .wea(0), .clkb(clk_in), .addrb(0), .dinb(0),
+            .doutb(0), .web(0));
+    
+    buf1 b1(.clka(clk_in), .addra(logic_addr_w), .dina(logic_data_w),
+            .wea(logic_wr_en), .clkb(clk_in), .addrb(render_addr_r),
+            .dinb(0), .doutb(render_data_r0), .web(0));
+    
+    always_ff @(posedge clk_in) begin
+        logic_data_r <= logic_data_r0;
+        render_data_r <= render_data_r0;
+        ready_out <= 1;
+    end
+endmodule
+`default_nettype none
