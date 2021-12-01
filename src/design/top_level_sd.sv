@@ -1,5 +1,17 @@
 `timescale 1ns / 1ps
 
+/**
+ * audio - outputs audio read from sd card.
+ *
+ * Operation:
+ * - reads from sd card via sd_controller
+ * - inputs the read data into fifo queue
+ * - audio_pwm takes output from fifo queue, return aud_pwm_out
+ *
+ * Inputs:
+ * - sd_cd_in always 1, play_audio_in depends on user input
+ */
+
 module audio(input wire clk_in,
              input wire clk_25mhz, 
              input wire rst_in,
@@ -38,6 +50,7 @@ module audio(input wire clk_in,
     logic[7:0] sd_dout;         // data from sd card
     logic byte_available;       // high when byte available for read
     logic ready_for_next_byte;  // high when ready for new byte to be written
+    logic[4:0] status;          // for debugging
 
     // FIFO inputs
     logic full;
@@ -52,14 +65,15 @@ module audio(input wire clk_in,
     sd_controller sd(.reset(reset), .clk(clk_25mhz), .cs(sd_dat[3]), .mosi(sd_cmd_out), 
                      .miso(sd_dat[0]), .sclk(sd_sck_out), .ready(ready), .address(addr),
                      .rd(rd), .dout(sd_dout), .byte_available(byte_available),
-                     .wr(wr), .din(sd_din), .ready_for_next_byte(ready_for_next_byte));
+                     .wr(wr), .din(sd_din), .ready_for_next_byte(ready_for_next_byte),
+                     .status(status));
                      
     // PWM module
     audio_pwm pwm(.clk(clk_in), .reset(rst_in), .music_data(fifo_dout), 
                   .pwm_out(pwm_out));
 
     // FIFO for data queue
-     fifo_generator_0 fifo(.srst(reset), .clk(clk_25mhz), .full(full), .din(sd_dout),
+    fifo_generator_0 fifo(.srst(reset), .clk(clk_25mhz), .full(full), .din(sd_dout),
                            .wr_en(byte_available), .empty(empty), .dout(fifo_dout), .rd_en(rd_en));
 
     logic[2:0] cycle_count;
