@@ -37,7 +37,7 @@ parameter CELL_COLOR = 12'hFFF;
 parameter CURSOR_COLOR = 12'h0F0;
 
 // Statistics render parameter
-parameter GRAPH_HEIGHT = 200, GRAPH_WIDTH = 200;
+parameter GRAPH_HEIGHT = 192, GRAPH_WIDTH = 192;
 parameter HISTORY_LEN = 25;
 parameter GRAPH_ORIGIN_X = 300, GRAPH_ORIGIN_Y = 20; //origin positioned at top left corner
 

@@ -323,7 +323,7 @@ module stat_render(input wire clk_in,
             && vcount_in < (GRAPH_ORIGIN_Y + GRAPH_HEIGHT);
         sample_idx = (hcount_in - GRAPH_ORIGIN_X) >> LOG_SAMPLE_PIX;
         sample_height =
-            (GRAPH_HEIGHT * tally[sample_idx]) << log_max_tally;
+            (128 * tally[sample_idx] + 64 * tally[sample_idx]) << log_max_tally;
         sample_vcount = GRAPH_ORIGIN_Y + GRAPH_HEIGHT - sample_height;
         on_point = vcount_in == sample_vcount;
     end

@@ -108,28 +108,38 @@ module logic_fetcher(input wire clk_in,
     } cache_state;
 
     // cache data structures
-    addr_t buf_addr;  // address of first word in buffer
+    addr_t buf_addr, buf_addr_last;  // address of first word in buffer
     logic valid;
     logic[0:2*WORD_SIZE-1] buffer[2:0];
 
     // addresses of first and last words making up a window.
-    addr_t word_addr, word_addr_last;
+   logic under_x, over_x, under_y, over_y;
+    addr_t cur_addr, row_above_addr, word_addr, word_addr_last;
     logic[LOG_WORD_SIZE-1:0] word_idx;  // index of x_out - 1 in cache
     logic cache_hit;
     always_comb begin
-        word_addr = ((y_out - 1) << (LOG_BOARD_SIZE-LOG_WORD_SIZE))
-            + ((x_out + {LOG_BOARD_SIZE{1'b1}}) >> LOG_WORD_SIZE);
-        word_addr_last = ((y_out - 1) << (LOG_BOARD_SIZE-LOG_WORD_SIZE))
-            + ((x_out + WINDOW_WIDTH-1) >> LOG_WORD_SIZE);
-        cache_hit = (word_addr == buf_addr) && valid;
+        under_x = x_out == 0;
+        over_x = x_out >= BOARD_SIZE - WINDOW_WIDTH + 2;
+        under_y = y_out == 0;
+        over_y = y_out == BOARD_SIZE-1;
+
+        cur_addr = y_out*WORDS_PER_ROW + x_out/WORD_SIZE;
+        row_above_addr = (y_out-1)*WORDS_PER_ROW + x_out/WORD_SIZE;
+        if (under_x) begin
+            word_addr = cur_addr - 1;
+            word_addr_last = row_above_addr;
+        end else if (over_x) begin
+            word_addr = row_above_addr;
+            word_addr_last = row_above_addr - WORDS_PER_ROW + 2;
+        end else begin
+            word_addr = row_above_addr;
+            word_addr_last = row_above_addr + 1;
+        end
+
+        cache_hit = (word_addr == buf_addr)
+                  && (word_addr_last == buf_addr_last) && valid;
         word_idx = x_out[LOG_WORD_SIZE-1:0] - 1;
     end
-
-    logic under_x, over_x, under_y, over_y;
-    assign under_x = x_out < WORD_SIZE;
-    assign over_x = x_out >= BOARD_SIZE-WORD_SIZE;
-    assign under_y = y_out == 0;
-    assign over_y = y_out == BOARD_SIZE-1;
 
     logic last_x_in_row, last_y_in_col;
     assign last_x_in_row = x_out == BOARD_SIZE-NUM_PE;
@@ -173,8 +183,10 @@ module logic_fetcher(input wire clk_in,
                         stall_out <= 0;
                     end else begin
                         buf_addr <= word_addr;
+                        buf_addr_last <= word_addr_last;
                         addr_out <= word_addr;
                         cache_state <= PRE_FETCH_ROW_0;
+                        valid <= 0;
                     end
                 end
                 PRE_FETCH_ROW_0: begin
@@ -198,24 +210,23 @@ module logic_fetcher(input wire clk_in,
                     cache_state <= FETCH_ROW_3;
 
                     buffer[0][0+:WORD_SIZE] <= under_x || over_y ? 0 :data_in;
-                    valid <= 1;
                 end
                 FETCH_ROW_3: begin
                     addr_out <= addr_out + WORDS_PER_ROW;
                     cache_state <= FETCH_ROW_4;
 
-                    buffer[2][WORD_SIZE-1+:WORD_SIZE] <=
+                    buffer[2][WORD_SIZE+:WORD_SIZE] <=
                         over_x || under_y ? 0 : data_in;
                 end
                 FETCH_ROW_4: begin
                     cache_state <= FETCH_ROW_5;
 
-                    buffer[1][WORD_SIZE-1+:WORD_SIZE] <= over_x ? 0 : data_in;
+                    buffer[1][WORD_SIZE+:WORD_SIZE] <= over_x ? 0 : data_in;
                 end
                 FETCH_ROW_5: begin
                     cache_state <= SEARCH;
 
-                    buffer[0][WORD_SIZE-1+:WORD_SIZE] <=
+                    buffer[0][WORD_SIZE+:WORD_SIZE] <=
                         over_x || over_y ? 0 :data_in;
                     valid <= 1;
                 end
@@ -316,7 +327,9 @@ module logic_writeback(input wire clk_in, stall_in, start_in, done_in,
             end else begin
                 wr_en_out <= 0;
             end
-        end 
+        end else begin
+            wr_en_out <= 0;
+        end
         done_out <= done_in;
     end
 endmodule

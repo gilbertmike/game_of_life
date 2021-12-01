@@ -24,15 +24,23 @@ module life_logic_tb;
                    .addr_w_out(addr_w), .data_w_out(data_w),
                    .wr_en_out(wr_en), .done_out(done));
 
+    logic[15:0] data[0:MAX_ADDR-1];
+
+    always_ff @(posedge clk) begin
+        data_r <= data[addr_r];
+    end
+
     initial begin
         clk = 0;
         rst = 1;
         start = 0;
         click = 0;
         speed = 0;
-        data_r = 0;
         cursor_x = 0;
         cursor_y = 0;
+        for (integer i = 0; i < MAX_ADDR; i++) begin
+            data[i] = ~i;
+        end
         
         // Start test
         #20;

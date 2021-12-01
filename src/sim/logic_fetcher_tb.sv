@@ -20,10 +20,18 @@ module logic_fetcher_tb;
                           .window_out(window), .addr_out(addr_out), .x_out(x),
                           .y_out(y), .stall_out(stall));
 
+    logic[15:0] data[0:MAX_ADDR-1];
+
+    always_ff @(posedge clk) begin
+        data_in <= data[addr_out];
+    end
+
     initial begin
         clk = 0;
         start = 0;
-        data_in = 0;
+        for (integer i = 0; i < MAX_ADDR; i++) begin
+            data[i] = ~i;
+        end
 
         // Start fetching
         #20;
