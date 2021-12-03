@@ -9,9 +9,7 @@ module user_interface#(parameter LOG_DEBOUNCE_COUNT = 20,
                        output logic click_out,
                        output logic[LOG_MAX_SPEED-1:0] speed_out,
                        output logic[LOG_BOARD_SIZE-1:0] cursor_x_out,
-                       output logic[LOG_BOARD_SIZE-1:0] cursor_y_out,
-                       output logic[LOG_BOARD_SIZE-1:0] view_x_out,
-                       output logic[LOG_BOARD_SIZE-1:0] view_y_out);
+                       output logic[LOG_BOARD_SIZE-1:0] cursor_y_out);
     logic btnd_deb, btnu_deb, btnc_deb, btnl_deb, btnr_deb;
     debounce#(LOG_DEBOUNCE_COUNT) btn_debouncers [4:0] (
         .clk_in(clk_in), .rst_in(rst_in),
@@ -32,35 +30,21 @@ module user_interface#(parameter LOG_DEBOUNCE_COUNT = 20,
     assign speed_out = sw[LOG_MAX_SPEED-1:0];
 
     // Board viewer logic
-    logic click_past;
-    logic logic_done_past;
     always_ff @(posedge clk_in) begin
         if (rst_in) begin
-            logic_done_past <= 0;
-            click_past <= 0;
             click_out <= 0;
             cursor_x_out <= BOARD_SIZE / 2;
             cursor_y_out <= BOARD_SIZE / 2;
-            view_x_out <= (BOARD_SIZE - VIEW_SIZE) / 2;
-            view_y_out <= (BOARD_SIZE - VIEW_SIZE) / 2;
         end else begin
             click_out <= btnc_deb;
             if (btnd) begin
                 cursor_y_out <= cursor_y_out + 1;
-                if (cursor_y_out == view_y_out + VIEW_SIZE - 1)
-                    view_y_out <= view_y_out + 1;
             end else if (btnu) begin
                 cursor_y_out <= cursor_y_out - 1;
-                if (cursor_y_out == view_y_out)
-                    view_y_out <= view_y_out - 1;
             end else if (btnl) begin
                 cursor_x_out <= cursor_x_out - 1;
-                if (cursor_x_out == view_x_out)
-                    view_x_out <= view_x_out - 1;
             end else if (btnr) begin
                 cursor_x_out <= cursor_x_out + 1;
-                if (cursor_x_out == view_x_out + VIEW_SIZE - 1)
-                    view_x_out <= view_x_out + 1;
             end
         end
     end
