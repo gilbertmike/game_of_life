@@ -11,327 +11,276 @@
  */
 module life_logic(input wire clk_in,
                   input wire rst_in,
-                  input wire start_in,
                   input wire[LOG_MAX_SPEED-1:0] speed_in,
-                  input wire[WORD_SIZE-1:0] data_r_in,
                   input wire[LOG_BOARD_SIZE-1:0] cursor_x_in,
                   input wire[LOG_BOARD_SIZE-1:0] cursor_y_in,
                   input wire cursor_click_in,
-                  output logic[LOG_MAX_ADDR-1:0] addr_r_out,
-                  output logic[LOG_MAX_ADDR-1:0] addr_w_out,
-                  output logic[WORD_SIZE-1:0] data_w_out,
-                  output logic wr_en_out,
-                  output logic done_out);
-    // Central game logic FSM
-    logic update;
-    logic[7:0] counter;
+                  input wire[HCOUNT_WIDTH-1:0] hcount_in,
+                  input wire[VCOUNT_WIDTH-1:0] vcount_in,
+                  input wire hsync_in, vsync_in, blank_in,
+                  input wire alive_in,
+                  input wire wr_en,
+                  output logic[HCOUNT_WIDTH-1:0] hcount_out,
+                  output logic[VCOUNT_WIDTH-1:0] vcount_out,
+                  output logic hsync_out, vsync_out, blank_out,
+                  output logic alive_out);
+    localparam ADDR_START = 2*BOARD_SIZE + 3;
+
+    hcount_t hcount1, hcount2, hcount3;
+    vcount_t vcount1, vcount2, vcount3;
+    logic hsync1, hsync2, hsync3;
+    logic vsync1, vsync2, vsync3;
+    logic blank1, blank2, blank3;
+
+    logic en1, en2, en3;
+    logic update1, update2;
+    logic rule_click1, rule_click2;
+    logic alive_in1, alive_in2;
+    logic wr_en1, wr_en2;
+
+    logic a, b, c, d, e, f, g, h, i;
+    logic next_state2, next_state3;
+
+    // ------------------------------------------------------- First Stage
+    life_tick tick(.clk_in(clk_in), .rst_in(rst_in), .speed_in(speed_in),
+                   .hcount_in(hcount_in), .vcount_in(vcount_in),
+                   .hcount_out(hcount1), .vcount_out(vcount1), .en_out(en1),
+                   .update_out(update1));
+
+    always_ff @(posedge clk_in) begin
+        rule_click1 <= cursor_x_in == hcount_in && cursor_y_in == vcount_in
+                        && cursor_click_in;
+        alive_in1 <= alive_in;
+        wr_en1 <= wr_en;
+        {hsync1, vsync1, blank1} <= {hsync_in, vsync_in, blank_in};
+    end
+
+    // ------------------------------------------------------- Second Stage
     always_ff @(posedge clk_in) begin
         if (rst_in) begin
-            update <= 1'b0;
-            counter <= 0;
-        end else if (start_in) begin
-            update <= counter >= 8'hFF - speed_in ? 1'b1 : 1'b0;
-            counter <= counter + speed_in;
+            en2 <= 0;
+            rule_click2 <= 0;
+            alive_in2 <= 0;
+            wr_en2 <= 0;
+            update2 <= 0;
+            {hcount2, vcount2} <= 0;
+            {hsync2, vsync2, blank2} <= 3'b0;
         end else begin
-            update <= 1'b0;
+            en2 <= en1;
+            rule_click2 <= rule_click1;
+            alive_in2 <= alive_in1;
+            wr_en2 <= wr_en1;
+            update2 <= update1;
+            hcount2 <= hcount1;
+            vcount2 <= vcount1;
+            {hsync2, vsync2, blank2} <= {hsync1, vsync1, blank1};
         end
     end
 
-    logic fetch_stall, fetch_done;
-    pos_t fetch_x, fetch_y;
-    window_row_t fetch_window[2:0];
-    logic_fetcher fetch(.clk_in(clk_in), .start_in(start_in), .data_in(data_r_in),
-                        .window_out(fetch_window), .addr_out(addr_r_out), .x_out(fetch_x),
-                        .y_out(fetch_y), .stall_out(fetch_stall), .done_out(fetch_done));
+    smol_shiftreg0 row1_buf(.clk_in(clk_in), .rst_in(rst_in), .alive_in(d),
+                            .rd_en(en1), .wr_en(en2), .alive_out(c));
+    smol_shiftreg1 row2_buf(.clk_in(clk_in), .rst_in(rst_in), .alive_in(g),
+                            .rd_en(en1), .wr_en(en2), .alive_out(f));
+    big_shiftreg rest_buf(.clk_in(clk_in), .rst_in(rst_in), .wr_en(en2),
+                          .alive_in(next_state2), .rd_en(en1), .alive_out(i));
 
-    logic rule_stall, rule_done;
-    logic[NUM_PE-1:0] rule_state;
-    logic_rule rule(.clk_in(clk_in), .stall_in(fetch_stall), .x_in(fetch_x),
-                    .y_in(fetch_y), .window_in(fetch_window),
-                    .done_in(fetch_done), .cursor_x_in(cursor_x_in),
-                    .cursor_y_in(cursor_y_in),
-                    .cursor_click_in(cursor_click_in), .update_in(update),
-                    .state_out(rule_state), .stall_out(rule_stall),
-                    .done_out(rule_done));
+    // ------------------------------------------------------- Third Stage
+    life_rule rule(.a(a), .b(b), .c(c), .d(d), .e(e), .f(f), .g(g), .h(h),
+                   .i(i), .click(rule_click2), .alive_in(alive_in2),
+                   .wr_en(wr_en2), .update_in(update2), .next_state(next_state2));
 
-    // Delay writeback start by 2 cycles
-    logic wb_start0;
-    logic wb_start;
-    always_ff @(posedge clk_in) begin
-        wb_start0 <= start_in;
-        wb_start <= wb_start0;
-    end
-    logic wb_done, rst_done;
-    logic_writeback wb(.clk_in(clk_in), .stall_in(rule_stall),
-                       .done_in(rule_done), .start_in(wb_start),
-                       .next_state_in(rule_state), .wr_en_out(wr_en_out),
-                       .addr_w_out(addr_w_out), .data_w_out(data_w_out),
-                       .done_out(wb_done));
     always_ff @(posedge clk_in) begin
         if (rst_in) begin
-            rst_done <= 1'b1;
-        end else if (start_in) begin
-            rst_done <= 1'b0;
+            {a, b, d, e, g, h} <= 9'b0;
+        end else if (en2) begin
+            a <= b;
+            b <= c;
+            d <= e;
+            e <= f;
+            g <= h;
+            h <= i;
         end
-    end
-    assign done_out = rst_done || wb_done;
-endmodule
-`default_nettype wire
 
-`default_nettype none
-/**
- * life_fetcher - generates tuple of (x, y, window, stall)
- *
- * Output:
- *  - The window is centered at cell (x, y).
- *  - The output will start from (0, 0), the top left cell.
- *  - If stall is asserted, then the output is invalid and will be
- *    resumed eventually.
- *
- * Timing:
- *  - Single pipeline stage with stall signal.
- */
-module logic_fetcher(input wire clk_in,
-                     input wire start_in,
-                     input wire[WORD_SIZE-1:0] data_in,
-                     output logic[WINDOW_WIDTH-1:0] window_out[2:0],
-                     output logic[LOG_MAX_ADDR-1:0] addr_out,
-                     output logic[LOG_BOARD_SIZE-1:0] x_out, y_out,
-                     output logic stall_out,
-                     output logic done_out);
-    localparam WORDS_PER_ROW = BOARD_SIZE / WORD_SIZE;
-    localparam STRIDE = NUM_PE;
-
-    enum logic[3:0] {
-        SEARCH, PRE_FETCH_ROW_0, FETCH_ROW_0, FETCH_ROW_1, FETCH_ROW_2,
-        FETCH_ROW_3, FETCH_ROW_4, FETCH_ROW_5, WINDOW, READY
-    } cache_state;
-
-    // cache data structures
-    addr_t buf_addr, buf_addr_last;  // address of first word in buffer
-    logic valid;
-    logic[0:2*WORD_SIZE-1] buffer[2:0];
-
-    // addresses of first and last words making up a window.
-   logic under_x, over_x, under_y, over_y;
-    addr_t cur_addr, row_above_addr, word_addr, word_addr_last;
-    logic[LOG_WORD_SIZE-1:0] word_idx;  // index of x_out - 1 in cache
-    logic cache_hit;
-    always_comb begin
-        under_x = x_out == 0;
-        over_x = x_out >= BOARD_SIZE - WINDOW_WIDTH + 2;
-        under_y = y_out == 0;
-        over_y = y_out == BOARD_SIZE-1;
-
-        cur_addr = y_out*WORDS_PER_ROW + x_out/WORD_SIZE;
-        row_above_addr = (y_out-1)*WORDS_PER_ROW + x_out/WORD_SIZE;
-        if (under_x) begin
-            word_addr = cur_addr - 1;
-            word_addr_last = row_above_addr;
-        end else if (over_x) begin
-            word_addr = row_above_addr;
-            word_addr_last = row_above_addr - WORDS_PER_ROW + 2;
+        if (rst_in) begin
+            en3 <= 0;
+            next_state3 <= 0;
+            {hcount3, vcount3} <= 0;
+            {hsync3, vsync3, blank3} <=3'b0;
         end else begin
-            word_addr = row_above_addr;
-            word_addr_last = row_above_addr + 1;
+            en3 <= en2;
+            next_state3 <= next_state2;
+            {hcount3, vcount3} <= {hcount2, vcount2};
+            {hsync3, vsync3, blank3} <= {hsync2, vsync2, blank2};
         end
-
-        cache_hit = (word_addr == buf_addr)
-                  && (word_addr_last == buf_addr_last) && valid;
-        word_idx = x_out[LOG_WORD_SIZE-1:0] - 1;
     end
 
-    logic last_x_in_row, last_y_in_col;
-    assign last_x_in_row = x_out == BOARD_SIZE-NUM_PE;
-    assign last_y_in_col = y_out == BOARD_SIZE-1;
+    // -------------------------------------------------------------- Fourth Stage
     always_ff @(posedge clk_in) begin
-        if (start_in) begin
-            x_out <= 0;
-            y_out <= 0;
-            done_out <= 0;
-            stall_out <= 1;
-
-            {buffer[2], buffer[1], buffer[0]} <= {3*2*WORD_SIZE{1'b0}};
-            buf_addr <= 0;
-            addr_out <= 0;
-            valid <= 0;
-            cache_state <= SEARCH;  // lookup from cache
-        end else if (!stall_out && !done_out) begin  // ready to move
-            if (last_x_in_row && last_y_in_col) begin
-                x_out <= 0;
-                y_out <= 0;
-                done_out <= 1;
-                stall_out <= 1;
-            end else if (last_x_in_row) begin
-                x_out <= 0;
-                y_out <= y_out + 1;
-                stall_out <= 1;
-            end else begin
-                x_out <= x_out + STRIDE;
-                stall_out <= 1;
-            end
-            cache_state <= SEARCH;
-        end else if (!done_out) begin  // cache state machine
-            case (cache_state)
-                SEARCH: begin
-                    if (cache_hit) begin
-                        cache_state <= READY;
-
-                        window_out[2] <= buffer[2][word_idx+:WINDOW_WIDTH];
-                        window_out[1] <= buffer[1][word_idx+:WINDOW_WIDTH];
-                        window_out[0] <= buffer[0][word_idx+:WINDOW_WIDTH];
-                        stall_out <= 0;
-                    end else begin
-                        buf_addr <= word_addr;
-                        buf_addr_last <= word_addr_last;
-                        addr_out <= word_addr;
-                        cache_state <= PRE_FETCH_ROW_0;
-                        valid <= 0;
-                    end
-                end
-                PRE_FETCH_ROW_0: begin
-                    addr_out <= addr_out + WORDS_PER_ROW;
-                    cache_state <= FETCH_ROW_0;
-                end
-                FETCH_ROW_0: begin
-                    addr_out <= addr_out + WORDS_PER_ROW;
-                    cache_state <= FETCH_ROW_1;
-                    buffer[2][0+:WORD_SIZE] <= under_x || under_y ? 0
-                                                                  : data_in;
-                end
-                FETCH_ROW_1: begin
-                    addr_out <= word_addr_last;
-                    cache_state <= FETCH_ROW_2;
-
-                    buffer[1][0+:WORD_SIZE] <= under_x ? 0 : data_in;
-                end
-                FETCH_ROW_2: begin
-                    addr_out <= addr_out + WORDS_PER_ROW;
-                    cache_state <= FETCH_ROW_3;
-
-                    buffer[0][0+:WORD_SIZE] <= under_x || over_y ? 0 :data_in;
-                end
-                FETCH_ROW_3: begin
-                    addr_out <= addr_out + WORDS_PER_ROW;
-                    cache_state <= FETCH_ROW_4;
-
-                    buffer[2][WORD_SIZE+:WORD_SIZE] <=
-                        over_x || under_y ? 0 : data_in;
-                end
-                FETCH_ROW_4: begin
-                    cache_state <= FETCH_ROW_5;
-
-                    buffer[1][WORD_SIZE+:WORD_SIZE] <= over_x ? 0 : data_in;
-                end
-                FETCH_ROW_5: begin
-                    cache_state <= SEARCH;
-
-                    buffer[0][WORD_SIZE+:WORD_SIZE] <=
-                        over_x || over_y ? 0 :data_in;
-                    valid <= 1;
-                end
-                READY: begin /* wait */ end
-                default: begin
-                    cache_state <= READY;
-                end
-            endcase
-        end
-    end
-endmodule
-`default_nettype wire
-
-`default_nettype none
-/**
- * logic_rule - computes next board state.
- * 
- * Timing:
- *  - Single pipleline stage with stall signal.
- */
-module logic_rule(input wire clk_in, stall_in, done_in,
-                  input wire[LOG_BOARD_SIZE-1:0] x_in,
-                  input wire[LOG_BOARD_SIZE-1:0] y_in,
-                  input wire[WINDOW_WIDTH-1:0] window_in[2:0],
-                  input wire[LOG_BOARD_SIZE-1:0] cursor_x_in,
-                  input wire[LOG_BOARD_SIZE-1:0] cursor_y_in,
-                  input wire cursor_click_in,
-                  input wire update_in,
-                  output logic[NUM_PE-1:0] state_out,
-                  output logic stall_out, done_out);
-    logic[3:0] neighbor_cnt[NUM_PE-1:0];
-    logic[NUM_PE-1:0] old_state;
-    logic[NUM_PE-1:0] next_state;
-    always_comb begin
-        for (integer i = NUM_PE-1; i >= 0; i--) begin
-            old_state[i] = window_in[1][i+1];
-            neighbor_cnt[i] = window_in[2][i+2] + window_in[2][i+1]
-                            + window_in[2][i] + window_in[1][i+2]
-                            + window_in[1][i] + window_in[0][i+2]
-                            + window_in[0][i+1] + window_in[0][i];
-            if (update_in) begin
-                if (old_state[i]) begin
-                    if (neighbor_cnt[i] > 3) // overpopulation
-                        next_state[i] = 1'b0;
-                    else if (neighbor_cnt[i] < 2) // underpopulation
-                        next_state[i] = 1'b0;
-                    else // lives on
-                        next_state[i] = 1'b1;
-                end else if (neighbor_cnt[i] == 3) // reproduction
-                    next_state[i] = 1'b1;
-                else
-                    next_state[i] = 1'b0;
-            end else begin
-                next_state[i] = window_in[1][i+1];
-            end
-        end
-    end
-
-    always_ff @(posedge clk_in) begin
-        for (integer i = NUM_PE-1; i >= 0; i--) begin
-            if (((x_in + NUM_PE-1-i) == cursor_x_in) && (y_in == cursor_y_in)
-                    && cursor_click_in && !stall_in)
-                state_out[i] <= !old_state[i];
-            else if (!stall_in)
-                state_out[i] <= next_state[i];
-        end
-        stall_out <= stall_in;
-        done_out <= done_in;
-    end
-endmodule
-`default_nettype wire
-
-`default_nettype none
-/**
- * logic_writeback - buffers next word and sends it out.
- *
- * Timing:
- *  - Single pipeline stage.
- */
-module logic_writeback(input wire clk_in, stall_in, start_in, done_in,
-                       input wire[NUM_PE-1:0] next_state_in,
-                       output logic wr_en_out, done_out,
-                       output logic[LOG_MAX_ADDR-1:0] addr_w_out,
-                       output logic[WORD_SIZE-1:0] data_w_out);
-    logic[LOG_WORD_SIZE-1:0] buf_size;
-    always_ff @(posedge clk_in) begin
-        if (start_in) begin
-            buf_size <= 0;
-            addr_w_out <= MAX_ADDR-1;
-            wr_en_out <= 0;
-            data_w_out <= 0;
-        end else if (!stall_in) begin
-            buf_size <= buf_size + NUM_PE;
-            data_w_out <= {data_w_out[WORD_SIZE-NUM_PE-1:0], next_state_in};
-            if (buf_size == WORD_SIZE-NUM_PE) begin
-                wr_en_out <= 1;
-                addr_w_out <= addr_w_out + 1;
-            end else begin
-                wr_en_out <= 0;
-            end
+        if (rst_in) begin
+            alive_out <= 0;
+        end else if (en3) begin
+            alive_out <= next_state3;
         end else begin
-            wr_en_out <= 0;
+            alive_out <= 0;
         end
-        done_out <= done_in;
+
+        if (rst_in) begin
+            {hcount_out, vcount_out} <= 0;
+            {hsync_out, vsync_out, blank_out} <= 0;
+        end else begin
+            {hcount_out, vcount_out} <= {hcount3, vcount3};
+            {hsync_out, vsync_out, blank_out} <= {hsync3, vsync3, blank3};
+        end
     end
 endmodule
 `default_nettype wire
 
+`default_nettype none
+/**
+ * life_rule - all comb logic to calculate next state
+ *
+ * Timing: zero stage pipeline (1 cycle latency).
+ */
+module life_rule(input wire a, b, c,
+                 input wire d, e, f,
+                 input wire g, h, i,
+                 input wire click,
+                 input wire alive_in,
+                 input wire wr_en,
+                 input wire update_in,
+                 output logic next_state);
+    logic[3:0] neighbor_cnt;
+    logic evolved_state;
+    assign neighbor_cnt = a + b + c + d + f + g + h + i;
+    assign evolved_state = (neighbor_cnt == 3) || (neighbor_cnt == 2 && e);
+    always_comb begin
+        if (wr_en)
+            next_state = alive_in;
+        else if (click)
+            next_state = !e;
+        else if (update_in)
+            next_state = evolved_state;
+        else
+            next_state = e;
+    end
+endmodule
+`default_nettype wire
+
+`default_nettype none
+/**
+ * life_tick - if current pixel is inside board, assert en_out.
+ *
+ * Timing: one stage pipeline (2 cycle latency).
+ */
+module life_tick(input wire clk_in,
+                 input wire rst_in,
+                 input wire[LOG_MAX_SPEED-1:0] speed_in,
+                 input wire[HCOUNT_WIDTH-1:0] hcount_in,
+                 input wire[VCOUNT_WIDTH-1:0] vcount_in,
+                 output logic[HCOUNT_WIDTH-1:0] hcount_out,
+                 output logic[VCOUNT_WIDTH-1:0] vcount_out,
+                 output logic en_out, update_out);
+    localparam COUNTER_THRES = 60;
+    logic[7:0] speed_counter;
+    always_ff @(posedge clk_in) begin
+        if (rst_in) begin
+            en_out <= 0;
+            update_out <= 0;
+            hcount_out <= 0;
+            vcount_out <= 0;
+            speed_counter <= 0;
+        end else begin
+            // Process cell only if rendering pixel in side the board.
+            en_out <= (hcount_in < BOARD_SIZE) && (vcount_in < BOARD_SIZE);
+            hcount_out <= hcount_in;
+            vcount_out <= vcount_in;
+            if (hcount_in == BOARD_SIZE && vcount_in == BOARD_SIZE) begin
+                speed_counter <= speed_counter >= COUNTER_THRES ?
+                                 0 : speed_counter + speed_in;
+                update_out <= speed_counter >= COUNTER_THRES;
+            end
+        end
+    end
+endmodule
+`default_nettype wire
+
+`default_nettype none
+module big_shiftreg#(parameter SIZE=BOARD_SIZE*(BOARD_SIZE-1)-1)
+                    (input wire clk_in,
+                     input wire rst_in,
+                     input wire alive_in,
+                     input wire wr_en,
+                     input wire rd_en,
+                     output logic alive_out);
+    typedef logic[19:0] addr_t;
+
+    addr_t head_addr, tail_addr;
+    bram1024_2_wr1_rd1_0 b(
+        .clka(clk_in), .addra(head_addr), .dina(alive_in), .wea(wr_en),
+        .clkb(clk_in), .addrb(tail_addr), .doutb(alive_out));
+
+    always_ff @(posedge clk_in) begin
+        if (rst_in) begin
+            head_addr <= SIZE;
+            tail_addr <= 0;
+        end else begin
+            head_addr <= head_addr + wr_en;
+            tail_addr <= tail_addr + rd_en;
+        end
+    end
+endmodule
+`default_nettype wire
+
+`default_nettype none
+module smol_shiftreg0#(parameter SIZE=BOARD_SIZE-2)
+                      (input wire clk_in,
+                       input wire rst_in,
+                       input wire alive_in,
+                       input wire wr_en,
+                       input wire rd_en,
+                       output logic alive_out);
+    typedef logic[9:0] addr_t;
+
+    addr_t head_addr, tail_addr;
+    bram1024_wr1_rd1_0 b(
+        .clka(clk_in), .addra(head_addr), .dina(alive_in), .wea(wr_en),
+        .clkb(clk_in), .addrb(tail_addr), .doutb(alive_out));
+
+    always_ff @(posedge clk_in) begin
+        if (rst_in) begin
+            head_addr <= SIZE;
+            tail_addr <= 0;
+        end else begin
+            head_addr <= head_addr + wr_en;
+            tail_addr <= tail_addr + rd_en;
+        end
+    end
+endmodule
+`default_nettype wire
+
+`default_nettype none
+module smol_shiftreg1#(parameter SIZE=BOARD_SIZE-2)
+                      (input wire clk_in,
+                       input wire rst_in,
+                       input wire alive_in,
+                       input wire wr_en,
+                       input wire rd_en,
+                       output logic alive_out);
+    typedef logic[9:0] addr_t;
+
+    addr_t head_addr, tail_addr;
+    bram1024_wr1_rd1_1 b(
+        .clka(clk_in), .addra(head_addr), .dina(alive_in), .wea(wr_en),
+        .clkb(clk_in), .addrb(tail_addr), .doutb(alive_out));
+
+    always_ff @(posedge clk_in) begin
+        if (rst_in) begin
+            head_addr <= SIZE;
+            tail_addr <= 0;
+        end else begin
+            head_addr <= head_addr + wr_en;
+            tail_addr <= tail_addr + rd_en;
+        end
+    end
+endmodule
+`default_nettype wire

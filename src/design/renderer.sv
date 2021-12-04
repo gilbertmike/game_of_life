@@ -11,95 +11,65 @@
  * Timing:
  *  - Three stage pipeline.
  */
-module renderer(input wire clk_in, vclk_in, rst_in,
-                input wire[WORD_SIZE-1:0] data_in,
-                input wire[LOG_BOARD_SIZE-1:0] view_x_in, view_y_in,
+module renderer(input wire clk_in, rst_in,
+                input wire cell_alive_in,
+                input wire[HCOUNT_WIDTH-1:0] hcount_in,
+                input wire[VCOUNT_WIDTH-1:0] vcount_in,
+                input wire hsync_in, vsync_in, blank_in,
                 input wire[LOG_BOARD_SIZE-1:0] cursor_x_in, cursor_y_in,
-                output wire[LOG_MAX_ADDR-1:0] addr_r_out,
-                output logic done_out,
                 output logic[11:0] pix_out,
                 output logic vsync_out, hsync_out);
-    //initiate xvga instance
-    logic [10:0] hcount0;
-    logic [9:0] vcount0;
-    logic hsync0, vsync0, blank0;
-    xvga xvga1(
-        .vclk_in(vclk_in),
-        .hcount_out(hcount0),
-        .vcount_out(vcount0),
-        .vsync_out(vsync0),
-        .hsync_out(hsync0),
-        .blank_out(blank0));
-
     // Sample user input so no update happens within a frame
     pos_t view_x, view_y, cursor_x, cursor_y;
     always_ff @(posedge clk_in) begin
-        if (hcount0 == 0 && vcount0 == 0) begin
-            view_x <= view_x_in;
-            view_y <= view_y_in;
+        if (hcount_in == 0 && vcount_in == 0) begin
             cursor_x <= cursor_x_in;
             cursor_y <= cursor_y_in;
         end
     end
 
-    // First stage pipeline (counted from hcount, vcount) --------------------
-
-    logic is_alive;
-    render_fetch fetch(.clk_in(clk_in),
-                       .hcount_in(hcount0), .vcount_in(vcount0),
-                       .view_x_in(view_x), .view_y_in(view_y),
-                       .data_r_in(data_in), .addr_r_out(addr_r_out),
-                       .is_alive_out(is_alive));
-
-    // Second stage pipeline (counted from hcount, vcount) -------------------
-
     logic[10:0] hcount1;
     logic[9:0] vcount1;
     logic hsync1, vsync1, blank1;
     always_ff @(posedge clk_in) begin
-        hcount1 <= hcount0;
-        vcount1 <= vcount0;
-        {hsync1, vsync1, blank1} <= {hsync0, vsync0, blank0};
+        hcount1 <= hcount_in;
+        vcount1 <= vcount_in;
+        {hsync1, vsync1, blank1} <= {hsync_in, vsync_in, blank_in};
     end
 
     logic[11:0] cell_pix;
-    cell_render cell_r(.clk_in(clk_in), .is_alive_in(is_alive),
-                       .hcount_in(hcount1), .vcount_in(vcount1),
+    cell_render cell_r(.clk_in(clk_in), .is_alive_in(cell_alive_in),
                        .pix_out(cell_pix));
 
     logic[11:0] cursor_pix;
-    cursor_render cursor_r(.clk_in(clk_in), .hcount_in(hcount1),
-                           .vcount_in(vcount1), .view_x_in(view_x),
-                           .view_y_in(view_y), .cursor_x_in(cursor_x),
+    cursor_render cursor_r(.clk_in(clk_in), .hcount_in(hcount_in),
+                           .vcount_in(vcount_in), .cursor_x_in(cursor_x),
                            .cursor_y_in(cursor_y), .pix_out(cursor_pix));
-                           
+
     logic[11:0] stat_pix;
     stat_render stat_r(.clk_in(clk_in),
                        .rst_in(rst_in),
-                       .hcount_in(hcount1),
-                       .vcount_in(vcount1),
-                       .is_alive_in(is_alive),
+                       .hcount_in(hcount_in),
+                       .vcount_in(vcount_in),
+                       .is_alive_in(cell_alive_in),
                        .pix_out(stat_pix));
             
     logic[11:0] fence_pix;
     fence_render fence_r(.clk_in(clk_in),
                          .rst_in(rst_in),
-                         .hcount_in(hcount1),
-                         .vcount_in(vcount1),
+                         .hcount_in(hcount_in),
+                         .vcount_in(vcount_in),
                          .pix_out(fence_pix));
 
     logic[11:0] text_pix;
     text_render pic_r(.clk_in(clk_in),
-                       .hcount_in(hcount1),
-                       .vcount_in(vcount1),
+                       .hcount_in(hcount_in),
+                       .vcount_in(vcount_in),
                        .pix_out(text_pix));
-
-    // Third stage pipeline --------------------------------------------------
 
     always_ff @(posedge clk_in) begin
         if (rst_in) begin
             pix_out <= 0;
-            done_out <= 1;
         end else begin
             pix_out[11:8] <= blank1 ? 0 : cell_pix[11:8] + cursor_pix[11:8]
                                           + stat_pix[11:8] + fence_pix[11:8]
@@ -110,7 +80,6 @@ module renderer(input wire clk_in, vclk_in, rst_in,
             pix_out[3:0] <= blank1 ? 0 : cell_pix[3:0] + cursor_pix[3:0]
                                          + stat_pix[3:0] + fence_pix[3:0]
                                          + text_pix[3:0];
-            done_out <= (vcount1 >= SCREEN_HEIGHT);
         end
         {hsync_out, vsync_out} <= {~hsync1, ~vsync1};
     end
@@ -137,7 +106,7 @@ endmodule
 // other screen resolutions
 ////////////////////////////////////////////////////////////////////////////////
 
-module xvga(input wire vclk_in,
+module xvga(input wire vclk_in, rst_in,
             output logic [10:0] hcount_out,    // pixel number on current line
             output logic [9:0] vcount_out,     // line number
             output logic vsync_out, hsync_out,
@@ -176,48 +145,25 @@ module xvga(input wire vclk_in,
    assign next_hblank = hreset ? 0 : hblankon ? 1 : hblank;
    assign next_vblank = vreset ? 0 : vblankon ? 1 : vblank;
    always_ff @(posedge vclk_in) begin
-      hcount_out <= hreset ? 0 : hcount_out + 1;
-      hblank <= next_hblank;
-      hsync_out <= hsyncon ? 0 : hsyncoff ? 1 : hsync_out;  // active low
-
-      vcount_out <= hreset ? (vreset ? 0 : vcount_out + 1) : vcount_out;
-      vblank <= next_vblank;
-      vsync_out <= vsyncon ? 0 : vsyncoff ? 1 : vsync_out;  // active low
-
-      blank_out <= next_vblank | (next_hblank & ~hreset);
+      if (rst_in) begin
+          hcount_out <= 0;
+          vcount_out <= 0;
+          vsync_out <= 0;
+          hsync_out <= 0;
+          hblank <= 0;
+      end else begin
+          hcount_out <= hreset ? 0 : hcount_out + 1;
+          hblank <= next_hblank;
+          hsync_out <= hsyncon ? 0 : hsyncoff ? 1 : hsync_out;  // active low
+    
+          vcount_out <= hreset ? (vreset ? 0 : vcount_out + 1) : vcount_out;
+          vblank <= next_vblank;
+          vsync_out <= vsyncon ? 0 : vsyncoff ? 1 : vsync_out;  // active low
+    
+          blank_out <= next_vblank | (next_hblank & ~hreset);
+      end
    end
 endmodule
-
-//render_fetch module, to fetch info on squares within view window
-module render_fetch (input wire clk_in,
-                     input wire[10:0] hcount_in,
-                     input wire[9:0] vcount_in,
-                     input wire[LOG_BOARD_SIZE-1:0] view_x_in, view_y_in,
-                     input wire[WORD_SIZE-1:0] data_r_in,
-                     output logic[LOG_MAX_ADDR-1:0] addr_r_out,
-                     output logic is_alive_out);               
-    localparam WORDS_PER_ROW = BOARD_SIZE / WORD_SIZE;
-    // cell in view coordinate
-    pos_t view_cell_x, view_cell_y;
-    // cell in board coord
-    pos_t board_cell_x, board_cell_y;
-
-    always_comb begin
-        //shift from pixel coord to cell coord
-        view_cell_x = hcount_in >> LOG_CELL_SIZE;
-        view_cell_y = vcount_in >> LOG_CELL_SIZE;
-        board_cell_x = view_x_in + view_cell_x;
-        board_cell_y = view_y_in + view_cell_y;
-    end
-
-    always_ff @(posedge clk_in) begin
-        addr_r_out <= board_cell_y * WORDS_PER_ROW
-            + board_cell_x >> LOG_WORD_SIZE;
-        is_alive_out <=
-            data_r_in[WORD_SIZE-1-board_cell_x[LOG_WORD_SIZE-1:0]];
-    end
-endmodule
-`default_nettype wire
 
 `default_nettype none
 /**
@@ -237,29 +183,20 @@ endmodule
 module cursor_render(input wire clk_in,
                      input wire[10:0] hcount_in,
                      input wire[9:0] vcount_in,
-                     input wire[LOG_BOARD_SIZE-1:0] view_x_in,
-                     input wire[LOG_BOARD_SIZE-1:0] view_y_in,
                      input wire[LOG_BOARD_SIZE-1:0] cursor_x_in,
                      input wire[LOG_BOARD_SIZE-1:0] cursor_y_in,
                      output logic[11:0] pix_out);
     pos_t cursor_x_in_view, cursor_y_in_view;
-    logic[10:0] cursor_x_in_pix;
-    logic[9:0] cursor_y_in_pix;
     logic in_x_range, in_y_range, at_x_edge, at_y_edge;
     always_comb begin
-        cursor_x_in_view = cursor_x_in - view_x_in;
-        cursor_y_in_view = cursor_y_in - view_y_in;
-        cursor_x_in_pix = cursor_x_in_view << LOG_CELL_SIZE;
-        cursor_y_in_pix = cursor_y_in_view << LOG_CELL_SIZE;
-
-        in_x_range = (hcount_in >= cursor_x_in_pix)
-                        && (hcount_in <= cursor_x_in_pix + CELL_SIZE-1);
-        in_y_range = (vcount_in >= cursor_y_in_pix)
-                        && (vcount_in <= cursor_y_in_pix + CELL_SIZE-1);
-        at_x_edge = (hcount_in == cursor_x_in_pix)
-                        || (hcount_in == cursor_x_in_pix + CELL_SIZE-1);
-        at_y_edge = (vcount_in == cursor_y_in_pix)
-                        || (vcount_in == cursor_y_in_pix + CELL_SIZE-1);
+        in_x_range = (hcount_in >= cursor_x_in-1)
+                        && (hcount_in <= cursor_x_in + 1);
+        in_y_range = (vcount_in >= cursor_y_in)
+                        && (vcount_in <= cursor_y_in + 1);
+        at_x_edge = (hcount_in == cursor_x_in)
+                        || (hcount_in == cursor_x_in + 1);
+        at_y_edge = (vcount_in == cursor_y_in)
+                        || (vcount_in == cursor_y_in + 1);
     end
 
     always_ff @(posedge clk_in) begin
@@ -322,8 +259,7 @@ module stat_render(input wire clk_in,
         in_range_y = vcount_in > GRAPH_ORIGIN_Y
             && vcount_in < (GRAPH_ORIGIN_Y + GRAPH_HEIGHT);
         sample_idx = (hcount_in - GRAPH_ORIGIN_X) >> LOG_SAMPLE_PIX;
-        sample_height =
-            (128 * tally[sample_idx] + 64 * tally[sample_idx]) << log_max_tally;
+        sample_height = (GRAPH_HEIGHT * tally[sample_idx]) << log_max_tally;
         sample_vcount = GRAPH_ORIGIN_Y + GRAPH_HEIGHT - sample_height;
         on_point = vcount_in == sample_vcount;
     end
@@ -359,17 +295,11 @@ endmodule
 // */
 module cell_render(input wire clk_in,
                    input wire is_alive_in,
-                   input wire[10:0] hcount_in,
-                   input wire[9:0] vcount_in,
                    output logic[11:0] pix_out);
     always_ff @(posedge clk_in) begin
-        if ((hcount_in < VIEW_SIZE*CELL_SIZE)
-                && (vcount_in < VIEW_SIZE*CELL_SIZE)) begin
-            if (is_alive_in)
-                pix_out <= CELL_COLOR;
-            else
-                pix_out <= 12'h0;
-        end else
+        if (is_alive_in)
+            pix_out <= CELL_COLOR;
+        else
             pix_out <= 12'h0;
     end         
 endmodule
@@ -387,15 +317,14 @@ module fence_render (input wire clk_in,
                      input wire[9:0] vcount_in,
                      output logic[11:0] pix_out);
    localparam GAME_BOARD_DIS = 30, TOP_DIS = SCREEN_HEIGHT >> 1;
-   parameter VIEW_PIX = VIEW_SIZE * CELL_SIZE;
 
    always_ff @(posedge clk_in) begin
        if (rst_in) begin
            pix_out <= 0;
        end else begin
-           if (hcount_in == VIEW_PIX)
+           if (hcount_in == BOARD_SIZE + 1)
                pix_out <= 12'hFFF;
-           else if (hcount_in > VIEW_PIX && vcount_in == TOP_DIS)
+           else if (hcount_in > BOARD_SIZE + 1 && vcount_in == TOP_DIS)
                pix_out <= 12'hFFF;
            else 
                pix_out <= 12'h0;
@@ -416,7 +345,7 @@ module text_render#(parameter WIDTH = 384, HEIGHT = 240, COLOR = 12'hFFF)
                      input wire [10:0] hcount_in,
                      input wire [9:0] vcount_in,
                      output logic [11:0] pix_out);
-    localparam PATTERN_X_START = VIEW_SIZE_PIX;
+    localparam PATTERN_X_START = BOARD_SIZE + 1;
     localparam PATTERN_Y_START = SCREEN_HEIGHT / 2;
 
     logic[16:0] image_addr;

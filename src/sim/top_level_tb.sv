@@ -11,11 +11,14 @@ module top_level_tb;
     // Output
     logic[3:0] r, g, b;
     logic hs, vs;
+    logic sd_reset, sd_cd, sd_sck, sd_cmd;
+    logic[3:0] sd_dat;
 
     top_level#(.LOG_DEBOUNCE_COUNT(1), .LOG_WAIT_COUNT(1))
         uut(.clk_100mhz(clk), .btnc(btnc), .btnr(btnr), .btnu(btnu),
             .btnl(btnl), .btnd(btnd), .sw(sw), .vga_r(r), .vga_g(g), .vga_b(b),
-            .vga_hs(hs), .vga_vs(vs));
+            .vga_hs(hs), .vga_vs(vs), .sd_reset(sd_reset), .sd_cd(sd_cd), 
+            .sd_sck(sd_sck), .sd_cmd(sd_cmd), .sd_dat(sd_dat));
 
     initial begin
         clk = 0;
@@ -25,8 +28,9 @@ module top_level_tb;
         // Start test
         #20;
         sw[15] = 0;
-        btnu = 1;
+        #10;
         btnc = 1;
         #1000;
+        
     end
 endmodule
