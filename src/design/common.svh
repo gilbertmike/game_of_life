@@ -31,4 +31,16 @@ typedef logic[LOG_BOARD_SIZE-1:0] pos_t;
 typedef logic[LOG_MAX_SPEED-1:0] speed_t;
 typedef logic[HCOUNT_WIDTH-1:0] hcount_t;
 typedef logic[VCOUNT_WIDTH-1:0] vcount_t;
+
+// Commonly used inteface
+interface vga_if;
+    logic[HCOUNT_WIDTH-1:0] hcount;
+    logic[VCOUNT_WIDTH-1:0] vcount;
+    logic hsync;
+    logic vsync;
+    logic blank;
+
+    modport src(output hcount, vcount, hsync, vsync, blank);
+    modport dst(input hcount, vcount, hsync, vsync, blank);
+endinterface
 `endif
