@@ -39,7 +39,7 @@ module life_logic(input wire clk_in,
     logic wr_en1, wr_en2;
 
     logic a, b, c, d, e, f, g, h, i;
-    logic next_state1, next_state2, next_state3;
+    logic next_state2, next_state3;
 
     // ------------------------------------------------------- First Stage
     life_tick tick(.clk_in(clk_in), .rst_in(rst_in), .speed_in(speed_in),
@@ -58,10 +58,10 @@ module life_logic(input wire clk_in,
     // ------------------------------------------------------- Second Stage
     always_ff @(posedge clk_in) begin
         if (rst_in) begin
-            en2 <= en1;
+            en2 <= 0;
             rule_click2 <= 0;
             alive_in2 <= 0;
-            wr_en2 <= wr_en1;
+            wr_en2 <= 0;
             update2 <= 0;
             {hcount2, vcount2} <= 0;
             {hsync2, vsync2, blank2} <= 3'b0;
@@ -123,8 +123,14 @@ module life_logic(input wire clk_in,
         end else begin
             alive_out <= 0;
         end
-        {hcount_out, vcount_out} <= {hcount3, vcount3};
-        {hsync_out, vsync_out, blank_out} <= {hsync3, vsync3, blank3};
+
+        if (rst_in) begin
+            {hcount_out, vcount_out} <= 0;
+            {hsync_out, vsync_out, blank_out} <= 0;
+        end else begin
+            {hcount_out, vcount_out} <= {hcount3, vcount3};
+            {hsync_out, vsync_out, blank_out} <= {hsync3, vsync3, blank3};
+        end
     end
 endmodule
 `default_nettype wire
@@ -174,25 +180,32 @@ module life_tick(input wire clk_in,
                  output logic[HCOUNT_WIDTH-1:0] hcount_out,
                  output logic[VCOUNT_WIDTH-1:0] vcount_out,
                  output logic en_out, update_out);
+    localparam COUNTER_THRES = 60;
+    logic[7:0] speed_counter;
     always_ff @(posedge clk_in) begin
         if (rst_in) begin
             en_out <= 0;
             update_out <= 0;
             hcount_out <= 0;
             vcount_out <= 0;
+            update_out <= 0;
+            speed_counter <= 0;
         end else begin
             // Process cell only if rendering pixel in side the board.
             en_out <= (hcount_in < BOARD_SIZE) && (vcount_in < BOARD_SIZE);
             hcount_out <= hcount_in;
             vcount_out <= vcount_in;
-            update_out <= 0;
+            if (hcount_in == BOARD_SIZE && vcount_in == BOARD_SIZE) begin
+                speed_counter <= speed_counter >= COUNTER_THRES ? speed_in : 0;
+                update_out <= speed_counter >= COUNTER_THRES;
+            end
         end
     end
 endmodule
 `default_nettype wire
 
 `default_nettype none
-module big_shiftreg#(parameter SIZE=BOARD_SIZE*(BOARD_SIZE-1)-2)
+module big_shiftreg#(parameter SIZE=BOARD_SIZE*(BOARD_SIZE-1)-1)
                     (input wire clk_in,
                      input wire rst_in,
                      input wire alive_in,

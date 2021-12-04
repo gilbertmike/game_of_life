@@ -31,12 +31,19 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
     pos_t cursor_x, cursor_y, view_x, view_y;
     speed_t speed;
     logic click;
+    hcount_t ui_hcount;
+    vcount_t ui_vcount;
+    logic ui_hsync, ui_vsync, ui_blank;
     user_interface#(LOG_DEBOUNCE_COUNT, LOG_WAIT_COUNT) ui(
         .clk_in(clk_25mhz), .rst_in(sw[15]),
         .btnd_in(btnd), .btnc_in(btnc), .btnl_in(btnl), .btnr_in(btnr),
-        .btnu_in(btnu), .sw_in(sw), .speed_out(speed), .cursor_x_out(cursor_x),
-        .cursor_y_out(cursor_y), .click_out(click), .view_x_out(view_x),
-        .view_y_out(view_y));
+        .btnu_in(btnu), .sw_in(sw),
+        .hcount_in(hcount), .vcount_in(vcount), .vsync_in(vsync),
+        .hsync_in(hsync), .blank_in(blank),
+        .speed_out(speed), .cursor_x_out(cursor_x), .cursor_y_out(cursor_y),
+        .click_out(click),
+        .hcount_out(ui_hcount), .vcount_out(ui_vcount), .hsync_out(ui_hsync),
+        .vsync_out(ui_vsync), .blank_out(ui_blank));
 
     hcount_t logic_hcount;
     vcount_t logic_vcount;
@@ -47,8 +54,8 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
         .cursor_x_in(cursor_x), .cursor_y_in(cursor_y),
         .cursor_click_in(click),
         .alive_in(0), .wr_en(0),
-        .hcount_in(hcount), .vcount_in(vcount), .vsync_in(vsync),
-        .hsync_in(hsync), .blank_in(blank),
+        .hcount_in(ui_hcount), .vcount_in(ui_vcount), .vsync_in(ui_vsync),
+        .hsync_in(ui_hsync), .blank_in(ui_blank),
         .hcount_out(logic_hcount), .vcount_out(logic_vcount),
         .hsync_out(logic_hsync), .vsync_out(logic_vsync),
         .blank_out(logic_blank),

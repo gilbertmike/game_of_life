@@ -28,21 +28,7 @@ module top_level_tb;
         // Start test
         #20;
         sw[15] = 0;
-        btnu = 1;
-        btnc = 1;
-        #100;
-        sw[15] = 1;
-        #20
-        sw[15] = 0;
-        btnu = 1;
-        #10
-        btnu = 0;
-        btnc = 1;
-        btnl = 1;
-        #20
-        btnc = 0;
-        btnr = 1;
-        #30;
+        #10;
         btnc = 1;
         #1000;
         
