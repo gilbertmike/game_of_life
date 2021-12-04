@@ -188,7 +188,6 @@ module life_tick(input wire clk_in,
             update_out <= 0;
             hcount_out <= 0;
             vcount_out <= 0;
-            update_out <= 0;
             speed_counter <= 0;
         end else begin
             // Process cell only if rendering pixel in side the board.
@@ -196,7 +195,8 @@ module life_tick(input wire clk_in,
             hcount_out <= hcount_in;
             vcount_out <= vcount_in;
             if (hcount_in == BOARD_SIZE && vcount_in == BOARD_SIZE) begin
-                speed_counter <= speed_counter >= COUNTER_THRES ? speed_in : 0;
+                speed_counter <= speed_counter >= COUNTER_THRES ?
+                                 0 : speed_counter + speed_in;
                 update_out <= speed_counter >= COUNTER_THRES;
             end
         end
