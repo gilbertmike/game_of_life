@@ -31,6 +31,7 @@ module top_level_tb;
         #10;
         btnc = 1;
         #1000;
-        
+        sw[13:11] = 3'd2;
+        #1000;
     end
 endmodule
