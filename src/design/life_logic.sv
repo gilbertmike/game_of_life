@@ -84,10 +84,11 @@ module life_logic(input wire clk_in,
     big_shiftreg rest_buf(.clk_in(clk_in), .rst_in(rst_in), .wr_en(en2),
                           .alive_in(next_state2), .rd_en(en1), .alive_out(i));
 
-    // ------------------------------------------------------- Third Stage
+    // ------------------------------------------------------------ Third Stage
     life_rule rule(.a(a), .b(b), .c(c), .d(d), .e(e), .f(f), .g(g), .h(h),
                    .i(i), .click(rule_click2), .alive_in(alive_in2),
-                   .wr_en(wr_en2), .update_in(update2), .next_state(next_state2));
+                   .wr_en(wr_en2), .update_in(update2),
+                   .next_state(next_state2));
 
     always_ff @(posedge clk_in) begin
         if (rst_in) begin
@@ -114,7 +115,7 @@ module life_logic(input wire clk_in,
         end
     end
 
-    // -------------------------------------------------------------- Fourth Stage
+    // ----------------------------------------------------------- Fourth Stage
     always_ff @(posedge clk_in) begin
         if (rst_in) begin
             alive_out <= 0;
@@ -196,7 +197,8 @@ module life_tick(input wire clk_in,
             hcount_out <= hcount_in;
             vcount_out <= vcount_in;
             if (hcount_in == BOARD_SIZE && vcount_in == BOARD_SIZE) begin
-                speed_counter <= speed_counter >= COUNTER_THRES ? speed_in : 0;
+                speed_counter <= speed_counter >= COUNTER_THRES ?
+                                 0 : speed_counter + speed_in;
                 update_out <= speed_counter >= COUNTER_THRES;
             end
         end
@@ -331,6 +333,7 @@ module seed_gen(input wire clk_in,
     // ----------------------------------------------------------- Second Stage
     logic seed_alive[0:NUM_SEED];
     copperhead p1(.x_in(x), .y_in(y), .alive_out(seed_alive[2]));
+    pulsar p2(.x_in(x), .y_in(y), .alive_out(seed_alive[3]));
 
     always_ff @(posedge clk_in) begin
         if (rst_in) begin
@@ -380,6 +383,45 @@ module copperhead(input wire[5:0] x_in,
             {6'd27, 6'd19}: alive_out = 1;
             {6'd27, 6'd23}: alive_out = 1;
             {6'd27, 6'd29}: alive_out = 1;
+
+            default: alive_out = 0;
+        endcase
+    end
+endmodule
+`default_nettype wire
+
+`default_nettype none
+module pulsar(input wire[5:0] x_in,
+              input wire[5:0] y_in,
+              output logic alive_out);
+    always_comb begin
+        case ({x_in, y_in})
+            {6'd22, 6'd22}: alive_out = 1;
+            {6'd22, 6'd27}: alive_out = 1;
+            {6'd23, 6'd21}: alive_out = 1;
+            {6'd23, 6'd23}: alive_out = 1;
+            {6'd24, 6'd19}: alive_out = 1;
+            {6'd24, 6'd20}: alive_out = 1;
+            {6'd24, 6'd22}: alive_out = 1;
+            {6'd24, 6'd24}: alive_out = 1;
+            {6'd25, 6'd19}: alive_out = 1;
+            {6'd25, 6'd20}: alive_out = 1;
+            {6'd25, 6'd23}: alive_out = 1;
+            {6'd25, 6'd25}: alive_out = 1;
+            {6'd25, 6'd28}: alive_out = 1;
+            {6'd25, 6'd29}: alive_out = 1;
+            {6'd26, 6'd19}: alive_out = 1;
+            {6'd26, 6'd20}: alive_out = 1;
+            {6'd26, 6'd24}: alive_out = 1;
+            {6'd26, 6'd26}: alive_out = 1;
+            {6'd26, 6'd28}: alive_out = 1;
+            {6'd26, 6'd29}: alive_out = 1;
+            {6'd26, 6'd30}: alive_out = 1;
+            {6'd27, 6'd25}: alive_out = 1;
+            {6'd27, 6'd27}: alive_out = 1;
+            {6'd27, 6'd28}: alive_out = 1;
+            {6'd27, 6'd29}: alive_out = 1;
+            {6'd27, 6'd30}: alive_out = 1;
 
             default: alive_out = 0;
         endcase
