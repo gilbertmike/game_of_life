@@ -84,10 +84,11 @@ module life_logic(input wire clk_in,
     big_shiftreg rest_buf(.clk_in(clk_in), .rst_in(rst_in), .wr_en(en2),
                           .alive_in(next_state2), .rd_en(en1), .alive_out(i));
 
-    // ------------------------------------------------------- Third Stage
+    // ------------------------------------------------------------ Third Stage
     life_rule rule(.a(a), .b(b), .c(c), .d(d), .e(e), .f(f), .g(g), .h(h),
                    .i(i), .click(rule_click2), .alive_in(alive_in2),
-                   .wr_en(wr_en2), .update_in(update2), .next_state(next_state2));
+                   .wr_en(wr_en2), .update_in(update2),
+                   .next_state(next_state2));
 
     always_ff @(posedge clk_in) begin
         if (rst_in) begin
@@ -114,7 +115,7 @@ module life_logic(input wire clk_in,
         end
     end
 
-    // -------------------------------------------------------------- Fourth Stage
+    // ----------------------------------------------------------- Fourth Stage
     always_ff @(posedge clk_in) begin
         if (rst_in) begin
             alive_out <= 0;
@@ -188,6 +189,7 @@ module life_tick(input wire clk_in,
             update_out <= 0;
             hcount_out <= 0;
             vcount_out <= 0;
+            update_out <= 0;
             speed_counter <= 0;
         end else begin
             // Process cell only if rendering pixel in side the board.
@@ -281,6 +283,148 @@ module smol_shiftreg1#(parameter SIZE=BOARD_SIZE-2)
             head_addr <= head_addr + wr_en;
             tail_addr <= tail_addr + rd_en;
         end
+    end
+endmodule
+`default_nettype wire
+
+`default_nettype none
+/**
+ * seed_gen - generates pre-made seeds.
+ *
+ * Inputs:
+ *  - idx_in is used to choose the pattern.
+ *  - idx_in == 0 is used to denote no pattern.
+ *  - idx_in == 1 generates all zeros.
+ */
+module seed_gen(input wire clk_in,
+                input wire rst_in,
+                input wire[LOG_NUM_SEED-1:0] idx_in,
+                vga_if vga_in,
+                output logic alive_out,
+                output logic wr_en_out,
+                vga_if vga_out);
+    localparam SEED_SIZE = 50;
+    localparam SEED_START = (BOARD_SIZE - SEED_SIZE) / 2;
+    localparam SEED_END = SEED_START + SEED_SIZE;
+
+    // ------------------------------------------------------------ First Stage
+    vga_t vga1;
+
+    logic[5:0] x, y;
+    logic in_pattern;
+    always_ff @(posedge clk_in) begin
+        if (rst_in) begin
+            x <= 0;
+            y <= 0;
+            in_pattern <= 0;
+            vga1 <= '{hcount: 0, vcount: 0, hsync: 0, vsync: 0, blank: 0};
+        end else begin
+            x <= vga_in.hcount - SEED_START;
+            y <= vga_in.vcount - SEED_START;
+            in_pattern <=
+                (vga_in.hcount >= SEED_START && vga_in.hcount < SEED_END)
+                && (vga_in.vcount >= SEED_START && vga_in.vcount < SEED_END);
+            vga1 <= '{hcount: vga_in.hcount, vcount: vga_in.vcount,
+                      hsync: vga_in.hsync, vsync: vga_in.vsync,
+                      blank: vga_in.blank};
+        end
+    end
+
+    // ----------------------------------------------------------- Second Stage
+    logic seed_alive[0:NUM_SEED];
+    copperhead p1(.x_in(x), .y_in(y), .alive_out(seed_alive[2]));
+    pulsar p2(.x_in(x), .y_in(y), .alive_out(seed_alive[3]));
+
+    always_ff @(posedge clk_in) begin
+        if (rst_in) begin
+            wr_en_out <= 0;
+            alive_out <= 0;
+            vga_out.hcount <= 0;
+            vga_out.vcount <= 0;
+            vga_out.hsync <= 0;
+            vga_out.vsync <= 0;
+            vga_out.blank <= 0;
+        end else begin
+            wr_en_out <= idx_in != 0;
+            alive_out <= in_pattern && seed_alive[idx_in];
+            vga_out.hcount <= vga1.hcount;
+            vga_out.vcount <= vga1.vcount;
+            vga_out.hsync <= vga1.hsync;
+            vga_out.vsync <= vga1.vsync;
+            vga_out.blank <= vga1.blank;
+        end
+    end
+endmodule
+`default_nettype wire
+
+`default_nettype none
+module copperhead(input wire[5:0] x_in,
+                  input wire[5:0] y_in,
+                  output logic alive_out);
+    always_comb begin
+        case ({x_in, y_in})
+            {6'd22, 6'd20}: alive_out = 1;
+            {6'd22, 6'd21}: alive_out = 1;
+            {6'd22, 6'd25}: alive_out = 1;
+            {6'd22, 6'd28}: alive_out = 1;
+            {6'd23, 6'd19}: alive_out = 1;
+            {6'd23, 6'd21}: alive_out = 1;
+            {6'd23, 6'd26}: alive_out = 1;
+            {6'd23, 6'd29}: alive_out = 1;
+            {6'd24, 6'd19}: alive_out = 1;
+            {6'd24, 6'd24}: alive_out = 1;
+            {6'd24, 6'd30}: alive_out = 1;
+            {6'd25, 6'd22}: alive_out = 1;
+            {6'd25, 6'd23}: alive_out = 1;
+            {6'd25, 6'd30}: alive_out = 1;
+            {6'd26, 6'd22}: alive_out = 1;
+            {6'd26, 6'd24}: alive_out = 1;
+            {6'd26, 6'd29}: alive_out = 1;
+            {6'd27, 6'd19}: alive_out = 1;
+            {6'd27, 6'd23}: alive_out = 1;
+            {6'd27, 6'd29}: alive_out = 1;
+
+            default: alive_out = 0;
+        endcase
+    end
+endmodule
+`default_nettype wire
+
+`default_nettype none
+module pulsar(input wire[5:0] x_in,
+              input wire[5:0] y_in,
+              output logic alive_out);
+    always_comb begin
+        case ({x_in, y_in})
+            {6'd22, 6'd22}: alive_out = 1;
+            {6'd22, 6'd27}: alive_out = 1;
+            {6'd23, 6'd21}: alive_out = 1;
+            {6'd23, 6'd23}: alive_out = 1;
+            {6'd24, 6'd19}: alive_out = 1;
+            {6'd24, 6'd20}: alive_out = 1;
+            {6'd24, 6'd22}: alive_out = 1;
+            {6'd24, 6'd24}: alive_out = 1;
+            {6'd25, 6'd19}: alive_out = 1;
+            {6'd25, 6'd20}: alive_out = 1;
+            {6'd25, 6'd23}: alive_out = 1;
+            {6'd25, 6'd25}: alive_out = 1;
+            {6'd25, 6'd28}: alive_out = 1;
+            {6'd25, 6'd29}: alive_out = 1;
+            {6'd26, 6'd19}: alive_out = 1;
+            {6'd26, 6'd20}: alive_out = 1;
+            {6'd26, 6'd24}: alive_out = 1;
+            {6'd26, 6'd26}: alive_out = 1;
+            {6'd26, 6'd28}: alive_out = 1;
+            {6'd26, 6'd29}: alive_out = 1;
+            {6'd26, 6'd30}: alive_out = 1;
+            {6'd27, 6'd25}: alive_out = 1;
+            {6'd27, 6'd27}: alive_out = 1;
+            {6'd27, 6'd28}: alive_out = 1;
+            {6'd27, 6'd29}: alive_out = 1;
+            {6'd27, 6'd30}: alive_out = 1;
+
+            default: alive_out = 0;
+        endcase
     end
 endmodule
 `default_nettype wire

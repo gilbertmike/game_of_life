@@ -6,8 +6,12 @@ parameter BOARD_SIZE = 480;
 parameter LOG_BOARD_SIZE = $clog2(BOARD_SIZE);
 
 // User input parameters
-parameter LOG_MAX_SPEED = 3;
+parameter LOG_MAX_SPEED = 5;
 parameter SPEED_SW = 0;
+
+parameter LOG_NUM_SEED = 3;
+parameter NUM_SEED = 2**LOG_NUM_SEED;
+parameter SEED_SW = 11;
 
 parameter MAX_SPEED = 2**LOG_MAX_SPEED;
 
@@ -31,6 +35,14 @@ typedef logic[LOG_BOARD_SIZE-1:0] pos_t;
 typedef logic[LOG_MAX_SPEED-1:0] speed_t;
 typedef logic[HCOUNT_WIDTH-1:0] hcount_t;
 typedef logic[VCOUNT_WIDTH-1:0] vcount_t;
+
+typedef struct {
+    logic[HCOUNT_WIDTH-1:0] hcount;
+    logic[VCOUNT_WIDTH-1:0] vcount;
+    logic hsync;
+    logic vsync;
+    logic blank;
+} vga_t;
 
 // Commonly used inteface
 interface vga_if;
