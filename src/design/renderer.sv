@@ -360,6 +360,8 @@ module text_render#(parameter WIDTH = SCREEN_WIDTH - BOARD_SIZE,
                      output logic [11:0] pix_out);
     localparam PATTERN_X_START = BOARD_SIZE + 1;
     localparam PATTERN_Y_START = 148;
+    
+    // image size: 332x160
 
     logic[16:0] image_addr;
     logic image_bit;
