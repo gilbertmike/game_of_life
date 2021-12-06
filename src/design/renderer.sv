@@ -222,51 +222,63 @@ module stat_render(input wire clk_in,
                    input wire[9:0] vcount_in,
                    input wire is_alive_in,
                    output logic[11:0] pix_out);
-    localparam SAMPLE_PIX = GRAPH_WIDTH / HISTORY_LEN;
-    localparam LOG_HISTORY_LEN = $clog2(HISTORY_LEN) + 1;
-    localparam LOG_SAMPLE_PIX = $clog2(SAMPLE_PIX);
+    localparam GRAPH_ZERO_Y = GRAPH_ORIGIN_Y + GRAPH_HEIGHT;
+    localparam LOG_GRAPH_HEIGHT = $clog2(GRAPH_HEIGHT);
+    localparam LOG_GRAPH_WIDTH = $clog2(GRAPH_WIDTH);
 
-    logic[4:0] frame_cnt;
+    logic[4:0] counter;
     logic[15:0] max_tally;
+    logic[15:0] cur_tally;
+    logic[15:0] history[0:GRAPH_WIDTH-1];
     logic[4:0] log_max_tally;
-    logic[HISTORY_LEN:0][15:0] tally;
     always_ff @(posedge clk_in) begin
         if (rst_in) begin
-            frame_cnt <= 0;
             max_tally <= 1;
             log_max_tally <= 0;
-        end else if (hcount_in == SCREEN_WIDTH-1 && vcount_in == SCREEN_HEIGHT-1) begin
-            frame_cnt <= frame_cnt + 1;
-            if (frame_cnt == 5'b1_1111) begin
-                tally <= {tally[HISTORY_LEN:1], 16'b0};
+            cur_tally <= 0;
+            counter <= 0;
+            for (integer i = 0; i < GRAPH_WIDTH-1; i++) begin
+                history[i] <= 0;
             end
-        end else if (frame_cnt == 5'b0) begin
-            tally[0] <= tally[0] + is_alive_in;
-            if (tally[0] > max_tally) begin
+        end else if (hcount_in == BOARD_SIZE && vcount_in == BOARD_SIZE) begin
+            if (counter >= GRAPH_SAMPLE_PERIOD) begin
+                counter <= 0;
+                for (integer i = 0; i < GRAPH_WIDTH - 1; i++) begin
+                    history[i] <= history[i+1];
+                end
+                history[GRAPH_WIDTH-1] <= cur_tally;
+            end else begin
+                counter <= counter + 1;
+            end
+            cur_tally <= 0;
+        end else if (hcount_in < BOARD_SIZE && vcount_in < BOARD_SIZE) begin
+            cur_tally <= cur_tally + is_alive_in;
+            if (cur_tally >= max_tally) begin
                 max_tally <= max_tally << 1;
                 log_max_tally <= log_max_tally + 1;
             end
         end
     end
-    
-    logic[LOG_HISTORY_LEN-1:0] sample_idx;
-    logic[9:0] sample_height;
-    logic[9:0] sample_vcount;
+
+    logic[LOG_GRAPH_WIDTH-1:0] sample_idx;
+    vcount_t sample_vcount;
     logic in_range_x, in_range_y, on_point;
     always_comb begin
-        in_range_x = hcount_in > GRAPH_ORIGIN_X
+        in_range_x = hcount_in >= GRAPH_ORIGIN_X
             && hcount_in < (GRAPH_ORIGIN_X + GRAPH_WIDTH);
-        in_range_y = vcount_in > GRAPH_ORIGIN_Y
+        in_range_y = vcount_in >= GRAPH_ORIGIN_Y
             && vcount_in < (GRAPH_ORIGIN_Y + GRAPH_HEIGHT);
-        sample_idx = (hcount_in - GRAPH_ORIGIN_X) >> LOG_SAMPLE_PIX;
-        sample_height = (GRAPH_HEIGHT * tally[sample_idx]) << log_max_tally;
-        sample_vcount = GRAPH_ORIGIN_Y + GRAPH_HEIGHT - sample_height;
-        on_point = vcount_in == sample_vcount;
+        sample_idx = hcount_in - GRAPH_ORIGIN_X;
+        sample_vcount = GRAPH_ZERO_Y
+            - (history[sample_idx] << (LOG_GRAPH_HEIGHT - log_max_tally));
+        on_point = (vcount_in >= sample_vcount) && (vcount_in < GRAPH_ZERO_Y);
     end
 
     //draws x and y axis for graph
     always_ff @(posedge clk_in) begin
-        if ((vcount_in == GRAPH_ORIGIN_Y + GRAPH_HEIGHT)
+        if (rst_in) begin
+            pix_out <= 12'hFFF;
+        end else if ((vcount_in == GRAPH_ORIGIN_Y + GRAPH_HEIGHT)
                 && in_range_x) begin
             pix_out <= 12'hFFF;
         end else if (hcount_in == GRAPH_ORIGIN_X && in_range_y) begin

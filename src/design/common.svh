@@ -26,7 +26,7 @@ parameter CURSOR_COLOR = 12'h0F0;
 
 // Statistics render parameter
 parameter GRAPH_HEIGHT = 128, GRAPH_WIDTH = 128;
-parameter HISTORY_LEN = 32;
+parameter GRAPH_SAMPLE_PERIOD = 2;
 parameter GRAPH_ORIGIN_X = BOARD_SIZE + 10, GRAPH_ORIGIN_Y = 10; //origin positioned at top left corner
 
 // Commonly used data types
