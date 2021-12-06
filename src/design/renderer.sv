@@ -352,13 +352,14 @@ endmodule
 // text_render based off of picture_lab from lab 3
 //
 //////////////////////////////////////////////////
-module text_render#(parameter WIDTH = 384, HEIGHT = 240, COLOR = 12'hFFF)
+module text_render#(parameter WIDTH = SCREEN_WIDTH - BOARD_SIZE, 
+                    HEIGHT = SCREEN_HEIGHT - 148, COLOR = 12'hFFF)
                     (input wire clk_in,
                      input wire [10:0] hcount_in,
                      input wire [9:0] vcount_in,
                      output logic [11:0] pix_out);
     localparam PATTERN_X_START = BOARD_SIZE + 1;
-    localparam PATTERN_Y_START = SCREEN_HEIGHT / 2;
+    localparam PATTERN_Y_START = 148;
 
     logic[16:0] image_addr;
     logic image_bit;
