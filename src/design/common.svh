@@ -9,9 +9,10 @@ parameter LOG_BOARD_SIZE = $clog2(BOARD_SIZE);
 parameter LOG_MAX_SPEED = 5;
 parameter SPEED_SW = 0;
 
-parameter LOG_NUM_SEED = 3;
+parameter LOG_NUM_SEED = 5;
 parameter NUM_SEED = 2**LOG_NUM_SEED;
-parameter SEED_SW = 11;
+parameter SEED_SW = 8;
+parameter SEED_EN_SW = 13;
 
 parameter MAX_SPEED = 2**LOG_MAX_SPEED;
 

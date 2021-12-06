@@ -299,6 +299,7 @@ endmodule
 module seed_gen(input wire clk_in,
                 input wire rst_in,
                 input wire[LOG_NUM_SEED-1:0] idx_in,
+                input wire en_in,
                 vga_if vga_in,
                 output logic alive_out,
                 output logic wr_en_out,
@@ -331,9 +332,9 @@ module seed_gen(input wire clk_in,
     end
 
     // ----------------------------------------------------------- Second Stage
-    logic seed_alive[0:NUM_SEED];
-    copperhead p1(.x_in(x), .y_in(y), .alive_out(seed_alive[2]));
-    pulsar p2(.x_in(x), .y_in(y), .alive_out(seed_alive[3]));
+    logic seed_alive;
+    seed_select s(.seed_idx(idx_in), .x_in(x), .y_in(y),
+                  .alive_out(seed_alive));
 
     always_ff @(posedge clk_in) begin
         if (rst_in) begin
@@ -345,86 +346,14 @@ module seed_gen(input wire clk_in,
             vga_out.vsync <= 0;
             vga_out.blank <= 0;
         end else begin
-            wr_en_out <= idx_in != 0;
-            alive_out <= in_pattern && seed_alive[idx_in];
+            wr_en_out <= en_in;
+            alive_out <= idx_in == 0 ? 0 : in_pattern && seed_alive;
             vga_out.hcount <= vga1.hcount;
             vga_out.vcount <= vga1.vcount;
             vga_out.hsync <= vga1.hsync;
             vga_out.vsync <= vga1.vsync;
             vga_out.blank <= vga1.blank;
         end
-    end
-endmodule
-`default_nettype wire
-
-`default_nettype none
-module copperhead(input wire[5:0] x_in,
-                  input wire[5:0] y_in,
-                  output logic alive_out);
-    always_comb begin
-        case ({x_in, y_in})
-            {6'd22, 6'd20}: alive_out = 1;
-            {6'd22, 6'd21}: alive_out = 1;
-            {6'd22, 6'd25}: alive_out = 1;
-            {6'd22, 6'd28}: alive_out = 1;
-            {6'd23, 6'd19}: alive_out = 1;
-            {6'd23, 6'd21}: alive_out = 1;
-            {6'd23, 6'd26}: alive_out = 1;
-            {6'd23, 6'd29}: alive_out = 1;
-            {6'd24, 6'd19}: alive_out = 1;
-            {6'd24, 6'd24}: alive_out = 1;
-            {6'd24, 6'd30}: alive_out = 1;
-            {6'd25, 6'd22}: alive_out = 1;
-            {6'd25, 6'd23}: alive_out = 1;
-            {6'd25, 6'd30}: alive_out = 1;
-            {6'd26, 6'd22}: alive_out = 1;
-            {6'd26, 6'd24}: alive_out = 1;
-            {6'd26, 6'd29}: alive_out = 1;
-            {6'd27, 6'd19}: alive_out = 1;
-            {6'd27, 6'd23}: alive_out = 1;
-            {6'd27, 6'd29}: alive_out = 1;
-
-            default: alive_out = 0;
-        endcase
-    end
-endmodule
-`default_nettype wire
-
-`default_nettype none
-module pulsar(input wire[5:0] x_in,
-              input wire[5:0] y_in,
-              output logic alive_out);
-    always_comb begin
-        case ({x_in, y_in})
-            {6'd22, 6'd22}: alive_out = 1;
-            {6'd22, 6'd27}: alive_out = 1;
-            {6'd23, 6'd21}: alive_out = 1;
-            {6'd23, 6'd23}: alive_out = 1;
-            {6'd24, 6'd19}: alive_out = 1;
-            {6'd24, 6'd20}: alive_out = 1;
-            {6'd24, 6'd22}: alive_out = 1;
-            {6'd24, 6'd24}: alive_out = 1;
-            {6'd25, 6'd19}: alive_out = 1;
-            {6'd25, 6'd20}: alive_out = 1;
-            {6'd25, 6'd23}: alive_out = 1;
-            {6'd25, 6'd25}: alive_out = 1;
-            {6'd25, 6'd28}: alive_out = 1;
-            {6'd25, 6'd29}: alive_out = 1;
-            {6'd26, 6'd19}: alive_out = 1;
-            {6'd26, 6'd20}: alive_out = 1;
-            {6'd26, 6'd24}: alive_out = 1;
-            {6'd26, 6'd26}: alive_out = 1;
-            {6'd26, 6'd28}: alive_out = 1;
-            {6'd26, 6'd29}: alive_out = 1;
-            {6'd26, 6'd30}: alive_out = 1;
-            {6'd27, 6'd25}: alive_out = 1;
-            {6'd27, 6'd27}: alive_out = 1;
-            {6'd27, 6'd28}: alive_out = 1;
-            {6'd27, 6'd29}: alive_out = 1;
-            {6'd27, 6'd30}: alive_out = 1;
-
-            default: alive_out = 0;
-        endcase
     end
 endmodule
 `default_nettype wire

@@ -31,6 +31,7 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
     pos_t cursor_x, cursor_y, view_x, view_y;
     speed_t speed;
     logic[2:0] seed_idx;
+    logic seed_en;
     logic click;
     vga_if vga_ui_seeder();
     user_interface#(LOG_DEBOUNCE_COUNT, LOG_WAIT_COUNT) ui(
@@ -40,13 +41,13 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
         .hcount_in(hcount), .vcount_in(vcount), .vsync_in(vsync),
         .hsync_in(hsync), .blank_in(blank),
         .speed_out(speed), .cursor_x_out(cursor_x), .cursor_y_out(cursor_y),
-        .click_out(click), .seed_idx_out(seed_idx),
+        .click_out(click), .seed_idx_out(seed_idx), .seed_en_out(seed_en),
         .vga_out(vga_ui_seeder.src));
 
     logic seed_alive, seed_wr_en;
     vga_if vga_seeder_logic();
     seed_gen seeder(.clk_in(clk_25mhz), .rst_in(sw[15]), .idx_in(seed_idx),
-                    .vga_in(vga_ui_seeder.dst),
+                    .vga_in(vga_ui_seeder.dst), .en_in(seed_en),
                     .alive_out(seed_alive), .wr_en_out(seed_wr_en),
                     .vga_out(vga_seeder_logic.src));
 

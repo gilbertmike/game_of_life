@@ -1,13 +1,16 @@
+import glob
+import os
+
 SEED_SIZE = 50
 
-HEADER = '''
-`default_nettype none
-module pattern(input wire[5:0] x_in,
+def get_header(name):
+    return '''`default_nettype none
+module {}(input wire[5:0] x_in,
                input wire[5:0] y_in,
                output logic alive_out);
     always_comb begin
-        case ({x_in, y_in})
-'''
+        case ({{x_in, y_in}})
+'''.format(name)
 
 FOOTER = '''
             default: alive_out = 0;
@@ -17,33 +20,81 @@ endmodule
 `default_nettype wire
 '''
 
-def pattern_plaintext_to_arr(text, nrow, ncol):
-    left_pad = (SEED_SIZE - ncol) // 2
-    right_pad = SEED_SIZE - left_pad - ncol
-    top_pad = (SEED_SIZE - nrow) // 2
-    bottom_pad = SEED_SIZE - top_pad - nrow
+SELECTOR_HEADER = '''`default_nettype none
+module seed_select(input wire[4:0] seed_idx,
+                   input wire[5:0] x_in,
+                   input wire[5:0] y_in,
+                   output logic alive_out);
+'''
 
-    def convert(c):
-        if c == 'O':
-            return 1
+SELECTOR_FOOTER = '''    assign alive_out = alive[seed_idx];
+endmodule
+`default_nettype wire
+'''
+
+LOGIC_ALIVE_TEMPLATE = '    logic alive[0:{}];\n'
+MODULE_TEMPLATE = \
+    '    {0} s{1}(.x_in(x_in), .y_in(y_in), .alive_out(alive[{1}]));\n'
+
+def rle_to_arr(lines):
+    nrow = 0
+    ncol = 0
+    rle = ''
+    for l in lines:
+        l = str(l).strip('b').strip("'")
+        if l[0] == '#':
+            continue
+        if l[0] == 'x':
+            specs = l.split(',')
+            for s in specs:
+                s = s.split('=')
+                if s[0].strip() == 'x':
+                    ncol = int(s[1].strip())
+                elif s[0].strip() == 'y':
+                    nrow = int(s[1].strip())
+                elif s[0].strip() == 'rule':
+                    assert \
+                        s[1].strip() in {'B3/S23', 's23/b3', 'b3/s23', '3/23',
+                                         '23/3'}, \
+                        'Not our rule!'
         else:
-            return 0
+            rle += l
 
-    arr = [[0]*SEED_SIZE]*top_pad
-    text_idx = 0
-    for r in range(nrow):
-        col = [0]*left_pad
-        for c in text[text_idx:text_idx+ncol]:
-            col.append(convert(c))
-        col += [0]*right_pad
-        arr.append(col)
-        text_idx += ncol
-    arr += [[0]*SEED_SIZE]*bottom_pad
-    return arr
+    assert nrow <= SEED_SIZE and ncol <= SEED_SIZE, 'Too big for seed!'
 
-def array_to_verilog(arr):
-    print(len(arr))
-    prog = HEADER
+    pad_left = (SEED_SIZE - ncol) // 2
+    pad_right = SEED_SIZE - ncol - pad_left
+    pad_top = (SEED_SIZE - nrow) // 2
+    pad_bottom = SEED_SIZE - nrow - pad_top
+
+    array = [[0]*SEED_SIZE]*pad_top
+    row = [0]*pad_left
+    num = 1
+    for c in rle:
+        if c.isnumeric():
+            num = int(c)
+        elif c == '$':
+            row += [0]*(SEED_SIZE - len(row))
+            array.append(row)
+            row = [0]*pad_left
+            num = 1
+        elif c == '!':
+            row += [0]*(SEED_SIZE - len(row))
+            array.append(row)
+            array += [[0]*SEED_SIZE]*(SEED_SIZE-len(array))
+            assert SEED_SIZE == len(array) and SEED_SIZE == len(array[0]), 'Parsing error!'
+            return array
+        elif c == 'b':
+            row += [0]*num
+            num = 1
+        elif c == 'o':
+            row += [1]*num
+            num = 1
+        else:
+            assert False, 'Parsing error!'
+
+def array_to_verilog(name, arr):
+    prog = get_header(name)
     for x in range(SEED_SIZE):
         for y in range(SEED_SIZE):
             if arr[y][x] == 1:
@@ -53,22 +104,44 @@ def array_to_verilog(arr):
     prog += FOOTER
     return prog
 
-def plaintext_to_verilog(text, nrow, ncol):
-    print(array_to_verilog(pattern_plaintext_to_arr(text, nrow, ncol)))
+def rle_to_verilog(name, lines):
+    return array_to_verilog(name, rle_to_arr(lines))
 
-pattern = '''..OOO...OOO
+def rle_file_to_verilog(fname):
+    name = fname.split('/')[-1].split('.')[0]
+    lines = []
+    with open(fname, 'rb') as f:
+        l = f.readline()
+        while l:
+            lines.append(l)
+            l = f.readline().strip(b'\n\r')
 
-O....O.O....O
-O....O.O....O
-O....O.O....O
-..OOO...OOO
+    return name, rle_to_verilog(name, lines)
 
-..OOO...OOO
-O....O.O....O
-O....O.O....O
-O....O.O....O
+def rle_dir_to_verilog(dirname):
+    all_modules = ''
+    module_names = []
+    for fname in glob.iglob(os.path.join(dirname, '*.rle')):
+        try:
+            name, module = rle_file_to_verilog(fname)
+            all_modules += module
+            module_names.append(name)
+        except:
+            print('Failed to parse ', fname)
 
-..OOO...OOO'''
+    final = all_modules
+    final += SELECTOR_HEADER
+    final += LOGIC_ALIVE_TEMPLATE.format(len(module_names)-1)
+    for i, n in enumerate(module_names):
+        final += MODULE_TEMPLATE.format(n, i)
+    final += SELECTOR_FOOTER
 
-plaintext_to_verilog(pattern, 12, 6)
+    return final
+
+if __name__ == '__main__':
+    import sys
+    dirname = sys.argv[1]
+    res_fname = sys.argv[2]
+    with open(res_fname, 'w') as f:
+        f.write(rle_dir_to_verilog(dirname))
 

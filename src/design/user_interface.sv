@@ -14,6 +14,7 @@ module user_interface#(parameter LOG_DEBOUNCE_COUNT = 20,
                        output logic[LOG_BOARD_SIZE-1:0] cursor_x_out,
                        output logic[LOG_BOARD_SIZE-1:0] cursor_y_out,
                        output logic[LOG_NUM_SEED-1:0] seed_idx_out,
+                       output logic seed_en_out,
                        vga_if.src vga_out);
     // --------------------------------------- Debouncers (excluded from stage)
     logic btnd_deb, btnu_deb, btnc_deb, btnl_deb, btnr_deb;
@@ -48,6 +49,7 @@ module user_interface#(parameter LOG_DEBOUNCE_COUNT = 20,
             cursor_x_out <= BOARD_SIZE / 2;
             cursor_y_out <= BOARD_SIZE / 2;
             seed_idx_out <= 0;
+            seed_en_out <= 0;
             vga_out.hcount <= 0;
             vga_out.vcount <= 0;
             {vga_out.hsync, vga_out.vsync, vga_out.blank} <= 0;
@@ -64,6 +66,7 @@ module user_interface#(parameter LOG_DEBOUNCE_COUNT = 20,
                 cursor_x_out <= cursor_x_out + 1;
             end
             seed_idx_out <= sw[SEED_SW+LOG_NUM_SEED-1:SEED_SW];
+            seed_en_out <= sw[SEED_EN_SW];
             vga_out.hcount <= hcount_in;
             vga_out.vcount <= vcount_in;
             {vga_out.hsync, vga_out.vsync, vga_out.blank} <=
