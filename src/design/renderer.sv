@@ -328,7 +328,7 @@ module fence_render (input wire clk_in,
                      input wire[10:0] hcount_in,
                      input wire[9:0] vcount_in,
                      output logic[11:0] pix_out);
-   localparam GAME_BOARD_DIS = 30, TOP_DIS = SCREEN_HEIGHT >> 1;
+   localparam GAME_BOARD_DIS = 30, TOP_DIS = 148;
 
    always_ff @(posedge clk_in) begin
        if (rst_in) begin
