@@ -419,7 +419,7 @@ module highlight_render# (parameter WIDTH = 160, HEIGHT = 15, COLOR = 12'h777)
                          input wire [9:0] vcount_in,
                          input wire [2:0] seed_idx_in,
                          output logic [11:0] highlight_pix_out);
-        localparam HIGHLIGHT_X = BOARD_SIZE + 1;
+        localparam HIGHLIGHT_X = BOARD_SIZE + 2;
         localparam HIGHLIGHT_Y_BEGIN = 158;
         
         logic[9:0] hl_y_coor;
