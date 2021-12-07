@@ -15,7 +15,8 @@ module user_interface#(parameter LOG_DEBOUNCE_COUNT = 20,
                        output logic[LOG_BOARD_SIZE-1:0] cursor_y_out,
                        output logic[LOG_NUM_SEED-1:0] seed_idx_out,
                        output logic seed_en_out,
-                       vga_if.src vga_out);
+                       vga_if.src vga_out,
+                       inout wire ps2_clk, ps2_data);
     // --------------------------------------- Debouncers (excluded from stage)
     logic btnd_deb, btnu_deb, btnc_deb, btnl_deb, btnr_deb;
     debounce#(LOG_DEBOUNCE_COUNT) btn_debouncers [4:0] (
@@ -34,12 +35,33 @@ module user_interface#(parameter LOG_DEBOUNCE_COUNT = 20,
         .clk_in(clk_in), .rst_in(rst_in), .noisy_in(sw_in),
         .clean_out(sw));
 
+    logic[11:0] last_mouse_x, last_mouse_y;
+    logic[11:0] mouse_x, mouse_y;
+    logic mouse_click, mouse_moved, setx, sety;
+    MouseCtl mouse(.clk(clk_in), .rst(rst_in), .ps2_clk(ps2_clk), .setx(setx),
+                   .sety(sety), .value(BOARD_SIZE/2), .ps2_data(ps2_data),
+                   .xpos(mouse_x), .ypos(mouse_y), .left(mouse_click));
+    assign mouse_moved = last_mouse_x != mouse_x || last_mouse_y != mouse_y;
+    always_ff @(posedge clk_in) begin
+        if (rst_in) begin
+            last_mouse_x <= 0;
+            last_mouse_y <= 0;
+            setx <= 1;
+            sety <= 1;
+        end else begin
+            setx <= 0;
+            sety <= 0;
+            last_mouse_x <= mouse_x;
+            last_mouse_y <= mouse_y;
+        end
+    end
+
     // --------------------------------------- Board viewer logic (First Stage)
     logic click_edge;  // frame-width pulse of click
     pos_edge click_edge_detect(
         .clk_in(clk_in), .rst_in(rst_in),
         .en(hcount_in == BOARD_SIZE && vcount_in == BOARD_SIZE),
-        .in(btnc_deb),
+        .in(btnc_deb || mouse_click),
         .out(click_edge));
 
     always_ff @(posedge clk_in) begin
@@ -57,13 +79,16 @@ module user_interface#(parameter LOG_DEBOUNCE_COUNT = 20,
             speed_out <= sw[LOG_MAX_SPEED-1:0];
             click_out <= click_edge;
             if (btnd) begin
-                cursor_y_out <= cursor_y_out + 1;
+                cursor_y_out <= cursor_y_out + (cursor_y_out < BOARD_SIZE);
             end else if (btnu) begin
-                cursor_y_out <= cursor_y_out - 1;
+                cursor_y_out <= cursor_y_out - (cursor_y_out > 0);
             end else if (btnl) begin
-                cursor_x_out <= cursor_x_out - 1;
+                cursor_x_out <= cursor_x_out - (cursor_y_out > 0);
             end else if (btnr) begin
-                cursor_x_out <= cursor_x_out + 1;
+                cursor_x_out <= cursor_x_out + (cursor_y_out < BOARD_SIZE);
+            end else if (mouse_moved) begin
+                cursor_x_out <= mouse_x < BOARD_SIZE ? mouse_x : BOARD_SIZE-1;
+                cursor_y_out <= mouse_y < BOARD_SIZE ? mouse_y : BOARD_SIZE-1;
             end
             seed_idx_out <= sw[SEED_SW+LOG_NUM_SEED-1:SEED_SW];
             seed_en_out <= sw[SEED_EN_SW];

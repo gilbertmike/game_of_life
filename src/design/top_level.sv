@@ -11,7 +11,8 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
                   output logic[3:0] vga_r, vga_g, vga_b,
                   output logic vga_hs, vga_vs,
                   output logic sd_reset, sd_cd, sd_sck, sd_cmd,
-                  output logic[3:0] sd_dat);
+                  output logic[3:0] sd_dat,
+                  inout wire ps2_clk, ps2_data);
     logic clk_25mhz;
     clk_wiz clk_gen(.reset(sw[15]), .clk_100_in(clk_100mhz),
                     .clk_25_out(clk_25mhz));
@@ -42,7 +43,7 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
         .hsync_in(hsync), .blank_in(blank),
         .speed_out(speed), .cursor_x_out(cursor_x), .cursor_y_out(cursor_y),
         .click_out(click), .seed_idx_out(seed_idx), .seed_en_out(seed_en),
-        .vga_out(vga_ui_seeder.src));
+        .vga_out(vga_ui_seeder.src), .ps2_clk(ps2_clk), .ps2_data(ps2_data));
 
     logic seed_alive, seed_wr_en;
     vga_if vga_seeder_logic();
