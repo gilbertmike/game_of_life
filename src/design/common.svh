@@ -16,6 +16,8 @@ parameter SEED_EN_SW = 13;
 
 parameter MAX_SPEED = 2**LOG_MAX_SPEED;
 
+parameter SENSITIVITY = 2;
+
 // Drawing parameters
 parameter SCREEN_WIDTH = 640;
 parameter SCREEN_HEIGHT = 480;
