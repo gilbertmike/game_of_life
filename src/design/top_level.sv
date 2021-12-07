@@ -70,7 +70,7 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
         .clk_in(clk_25mhz), .rst_in(sw[15]), .cell_alive_in(cell_alive),
         .hcount_in(logic_hcount), .vcount_in(logic_vcount),
         .hsync_in(logic_hsync), .vsync_in(logic_vsync), .blank_in(logic_blank),
-        .cursor_x_in(cursor_x), .cursor_y_in(cursor_y),
+        .cursor_x_in(cursor_x), .cursor_y_in(cursor_y), .seed_idx_in(seed_idx),
         .pix_out({vga_r, vga_g, vga_b}), .vsync_out(vga_vs),
         .hsync_out(vga_hs));
 

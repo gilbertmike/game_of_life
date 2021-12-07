@@ -16,6 +16,7 @@ module renderer(input wire clk_in, rst_in,
                 input wire[HCOUNT_WIDTH-1:0] hcount_in,
                 input wire[VCOUNT_WIDTH-1:0] vcount_in,
                 input wire hsync_in, vsync_in, blank_in,
+                input wire seed_idx_in,
                 input wire[LOG_BOARD_SIZE-1:0] cursor_x_in, cursor_y_in,
                 output logic[11:0] pix_out,
                 output logic vsync_out, hsync_out);
@@ -65,21 +66,45 @@ module renderer(input wire clk_in, rst_in,
     text_render pic_r(.clk_in(clk_in),
                        .hcount_in(hcount_in),
                        .vcount_in(vcount_in),
-                       .pix_out(text_pix));
+                       .text_pix_out(text_pix));
+                       
+    logic[11:0] highlight_pix;
+    highlight_render hl_r(.clk_in(clk_in),
+                          .hcount_in(hcount_in),
+                          .vcount_in(vcount_in),
+                          .seed_idx_in(seed_idx_in),
+                          .highlight_pix_out(highlight_pix));
 
+    logic[11:0] blended_pix;
+    alpha_blend r(
+                .text_pix_in(text_pix[11:8]),
+                .highlight_pix_in(highlight_pix[11:8]),
+                .blended_pix_out(blended_pix[11:8])
+                );
+    alpha_blend g(
+                .text_pix_in(text_pix[7:4]),
+                .highlight_pix_in(highlight_pix[7:4]),
+                .blended_pix_out(blended_pix[7:4])
+                );
+    alpha_blend b(
+                .text_pix_in(text_pix[3:0]),
+                .highlight_pix_in(highlight_pix[3:0]),
+                .blended_pix_out(blended_pix[3:0])
+                );
+    
     always_ff @(posedge clk_in) begin
         if (rst_in) begin
             pix_out <= 0;
         end else begin
             pix_out[11:8] <= blank1 ? 0 : cell_pix[11:8] + cursor_pix[11:8]
                                           + stat_pix[11:8] + fence_pix[11:8]
-                                          + text_pix[11:8];
+                                          + blended_pix[11:8];
             pix_out[7:3] <= blank1 ? 0 : cell_pix[7:3] + cursor_pix[7:3]
                                          + stat_pix[7:3] + fence_pix[7:3]
-                                         + text_pix[7:3];
+                                         + blended_pix[7:3];
             pix_out[3:0] <= blank1 ? 0 : cell_pix[3:0] + cursor_pix[3:0]
                                          + stat_pix[3:0] + fence_pix[3:0]
-                                         + text_pix[3:0];
+                                         + blended_pix[3:0];
         end
         {hsync_out, vsync_out} <= {~hsync1, ~vsync1};
     end
@@ -357,7 +382,7 @@ module text_render#(parameter WIDTH = SCREEN_WIDTH - BOARD_SIZE,
                     (input wire clk_in,
                      input wire [10:0] hcount_in,
                      input wire [9:0] vcount_in,
-                     output logic [11:0] pix_out);
+                     output logic [11:0] text_pix_out);
     localparam PATTERN_X_START = BOARD_SIZE + 1;
     localparam PATTERN_Y_START = 148;
     
@@ -378,9 +403,56 @@ module text_render#(parameter WIDTH = SCREEN_WIDTH - BOARD_SIZE,
                       && (vcount_in < (PATTERN_Y_START + HEIGHT));
     always_ff @ (posedge clk_in) begin
         if (x_in_range && y_in_range && image_bit)
-            pix_out <= COLOR; // greyscale
+            text_pix_out <= COLOR; // greyscale
         else
-            pix_out <= 0;
+            text_pix_out <= 0;
    end
 endmodule
+
+// * highlight_render - highlights the selected pattern name
+// *
+// * Output: highlight_pix_out
+// *
+module highlight_render# (parameter WIDTH = 160, HEIGHT = 15, COLOR = 12'h777) 
+                        (input wire clk_in,
+                         input wire [10:0] hcount_in,
+                         input wire [9:0] vcount_in,
+                         input wire [2:0] seed_idx_in,
+                         output logic [11:0] highlight_pix_out);
+        localparam HIGHLIGHT_X = BOARD_SIZE + 1;
+        localparam HIGHLIGHT_Y_BEGIN = 158;
+        
+        logic[9:0] hl_y_coor;
+        
+        always_comb begin
+            hl_y_coor = HIGHLIGHT_Y_BEGIN + (seed_idx_in - 1) * HEIGHT;
+        end
+        
+        always_ff @(posedge clk_in) begin
+            if (seed_idx_in != 0) begin
+                if  ((hcount_in >= HIGHLIGHT_X && hcount_in < (HIGHLIGHT_X + WIDTH)) &&
+                            (vcount_in >= hl_y_coor && vcount_in < (hl_y_coor + HEIGHT)))
+                    highlight_pix_out = COLOR;
+                else 
+                    highlight_pix_out = 0;
+            end                
+        end 
+endmodule
+
+// * alpha_blend - combines pixels from text_render and text_highlighter
+// * 
+// * Output: blended_pix_out
+module alpha_blend(
+        input wire[3:0] text_pix_in,
+        input wire[3:0] highlight_pix_in,
+        output logic[3:0] blended_pix_out
+        );
+    
+        logic[5:0] temp; //solution to overflow
+        always_comb begin
+            temp = text_pix_in * ALPHA_IN + highlight_pix_in * (6'b100 - ALPHA_IN);
+            blended_pix_out = temp[5:2];
+        end
+endmodule
+
 `default_nettype wire
