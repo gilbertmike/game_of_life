@@ -10,6 +10,7 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
                   output logic[15:0] led,
                   output logic[3:0] vga_r, vga_g, vga_b,
                   output logic vga_hs, vga_vs,
+                  output logic aud_sd, aud_pwm,
                   output logic sd_reset, sd_cd, sd_sck, sd_cmd,
                   output logic[3:0] sd_dat,
                   inout wire ps2_clk, ps2_data);
@@ -76,6 +77,31 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
         .pix_out({vga_r, vga_g, vga_b}), .vsync_out(vga_vs),
         .hsync_out(vga_hs));
 
-    assign led[0] = click;
+    life_logic life_logic(
+        .clk_in(clk_100mhz), .rst_in(sw[15]), .start_in(logic_start),
+        .speed_in(speed), .cursor_x_in(cursor_x), .cursor_y_in(cursor_y),
+        .cursor_click_in(click), .data_r_in(logic_data_r),
+        .addr_r_out(logic_addr_r), .addr_w_out(logic_addr_w),
+        .wr_en_out(logic_wr_en), .data_w_out(logic_data_w),
+        .done_out(logic_done));
+        
+
+    assign sd_dat[2:1] = 2'b11;
+
+    assign aud_sd = 1'b1;
+    audio audio(
+        .clk_in(clk_100mhz), .rst_in(sw[15]), .play_audio_in(1), 
+        .aud_pwm_out(aud_pwm), .sd_cd_in(sd_cd), .sd_dat(sd_dat),
+        .sd_reset_out(sd_reset), .sd_sck_out(sd_sck), 
+        .sd_cmd_out(sd_cmd), .clk_25mhz(clk_25mhz));
+        
+
+    assign led[0] = logic_done;
+    assign led[1] = render_done;
+    assign led[2] = db_ready;
+    assign led[3] = logic_start;
+    assign led[4] = buf_swap;
+    assign led[5] = logic_wr_en;
+    assign led[6] = click;
 endmodule
 `default_nettype wire
