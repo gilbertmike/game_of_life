@@ -22,6 +22,8 @@ parameter SCREEN_HEIGHT = 480;
 parameter HCOUNT_WIDTH = 11;
 parameter VCOUNT_WIDTH = 10;
 
+parameter ALPHA_IN  = 3;
+
 parameter CELL_COLOR = 12'hFFF;
 parameter CURSOR_COLOR = 12'h0F0;
 
