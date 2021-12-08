@@ -16,7 +16,7 @@ module renderer(input wire clk_in, rst_in,
                 input wire[HCOUNT_WIDTH-1:0] hcount_in,
                 input wire[VCOUNT_WIDTH-1:0] vcount_in,
                 input wire hsync_in, vsync_in, blank_in,
-                input wire seed_idx_in,
+                input wire[LOG_NUM_SEED-1:0] seed_idx_in,
                 input wire[LOG_BOARD_SIZE-1:0] cursor_x_in, cursor_y_in,
                 output logic[11:0] pix_out,
                 output logic vsync_out, hsync_out);
@@ -172,8 +172,8 @@ module stat_render(input wire clk_in,
     localparam LOG_GRAPH_WIDTH = $clog2(GRAPH_WIDTH);
 
     logic[4:0] counter;
-    logic[15:0] max_tally;
-    logic[15:0] cur_tally;
+    logic[17:0] max_tally;
+    logic[17:0] cur_tally;
     logic[15:0] history[0:GRAPH_WIDTH-1];
     logic[4:0] log_max_tally;
     always_ff @(posedge clk_in) begin
@@ -182,7 +182,7 @@ module stat_render(input wire clk_in,
             log_max_tally <= 0;
             cur_tally <= 0;
             counter <= 0;
-            for (integer i = 0; i < GRAPH_WIDTH-1; i++) begin
+            for (integer i = 0; i < GRAPH_WIDTH; i++) begin
                 history[i] <= 0;
             end
         end else if (hcount_in == BOARD_SIZE && vcount_in == BOARD_SIZE) begin
@@ -215,7 +215,7 @@ module stat_render(input wire clk_in,
             && vcount_in < (GRAPH_ORIGIN_Y + GRAPH_HEIGHT);
         sample_idx = hcount_in - GRAPH_ORIGIN_X;
         sample_vcount = GRAPH_ZERO_Y
-            - (history[sample_idx] << (LOG_GRAPH_HEIGHT - log_max_tally));
+            - ((history[sample_idx] << LOG_GRAPH_HEIGHT) >> log_max_tally);
         on_point = (vcount_in >= sample_vcount) && (vcount_in < GRAPH_ZERO_Y);
     end
 
@@ -333,21 +333,20 @@ endmodule
 // *
 // * Output: highlight_pix_out
 // *
-module highlight_render# (parameter WIDTH = 160, HEIGHT = 15, COLOR = 12'h666) 
+module highlight_render# (parameter WIDTH = 160, HEIGHT = 14, COLOR = 12'h999) 
                         (input wire clk_in,
                          input wire [10:0] hcount_in,
                          input wire [9:0] vcount_in,
-                         input wire [2:0] seed_idx_in,
+                         input wire [LOG_NUM_SEED-1:0] seed_idx_in,
                          output logic [11:0] highlight_pix_out);
         localparam HIGHLIGHT_X = BOARD_SIZE + 2;
-        localparam HIGHLIGHT_Y_BEGIN = 158;
-        
-        logic[9:0] hl_y_coor;
-        
+        localparam HIGHLIGHT_Y_BEGIN = 160;
+
+        vcount_t hl_y_coor;
         always_comb begin
             hl_y_coor = HIGHLIGHT_Y_BEGIN + (seed_idx_in - 1)*HEIGHT;
         end
-        
+
         always_ff @(posedge clk_in) begin
             if (seed_idx_in != 0) begin
                 if  ((hcount_in >= HIGHLIGHT_X && hcount_in < (HIGHLIGHT_X + WIDTH)) &&

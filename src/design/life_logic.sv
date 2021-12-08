@@ -333,7 +333,7 @@ module seed_gen(input wire clk_in,
 
     // ----------------------------------------------------------- Second Stage
     logic seed_alive;
-    seed_select s(.seed_idx(idx_in), .x_in(x), .y_in(y),
+    seed_select s(.seed_idx(idx_in-1), .x_in(x), .y_in(y),
                   .alive_out(seed_alive));
 
     always_ff @(posedge clk_in) begin

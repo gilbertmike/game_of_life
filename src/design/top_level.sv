@@ -7,11 +7,9 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
                  (input wire clk_100mhz,
                   input wire btnc, btnu, btnl, btnr, btnd,
                   input wire[15:0] sw,
-                  output logic[15:0] led,
                   output logic[3:0] vga_r, vga_g, vga_b,
                   output logic vga_hs, vga_vs,
-                  output logic sd_reset, sd_cd, sd_sck, sd_cmd,
-                  output logic[3:0] sd_dat,
+                  output logic aud_pwm, aud_sd,
                   inout wire ps2_clk, ps2_data);
     logic clk_25mhz;
     clk_wiz clk_gen(.reset(sw[15]), .clk_100_in(clk_100mhz),
@@ -31,7 +29,7 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
 
     pos_t cursor_x, cursor_y, view_x, view_y;
     speed_t speed;
-    logic[2:0] seed_idx;
+    logic[LOG_NUM_SEED-1:0] seed_idx;
     logic seed_en;
     logic click;
     vga_if vga_ui_seeder();
@@ -76,6 +74,9 @@ module top_level#(parameter LOG_DEBOUNCE_COUNT=20,
         .pix_out({vga_r, vga_g, vga_b}), .vsync_out(vga_vs),
         .hsync_out(vga_hs));
 
-    assign led[0] = click;
+    sound_effect effect(.clk_in(clk_25mhz), .rst_in(sw[15]),
+                        .seed_idx_in(seed_idx), .seed_en_in(seed_en),
+                        .click_in(click), .aud_sd_out(aud_sd),
+                        .aud_pwm_out(aud_pwm));
 endmodule
 `default_nettype wire

@@ -2792,7 +2792,7 @@ module pulsar(input wire[5:0] x_in,
 endmodule
 `default_nettype wire
 `default_nettype none
-module tencellinfinitegrowth(input wire[5:0] x_in,
+module 10cellinfinitegrowth(input wire[5:0] x_in,
                input wire[5:0] y_in,
                output logic alive_out);
     always_comb begin
@@ -3841,7 +3841,7 @@ module seed_select(input wire[4:0] seed_idx,
     fly s11(.x_in(x_in), .y_in(y_in), .alive_out(alive[11]));
     spacefiller s12(.x_in(x_in), .y_in(y_in), .alive_out(alive[12]));
     pulsar s13(.x_in(x_in), .y_in(y_in), .alive_out(alive[13]));
-    tencellinfinitegrowth s14(.x_in(x_in), .y_in(y_in), .alive_out(alive[14]));
+    10cellinfinitegrowth s14(.x_in(x_in), .y_in(y_in), .alive_out(alive[14]));
     vacuumgun s15(.x_in(x_in), .y_in(y_in), .alive_out(alive[15]));
     simkinglidergun s16(.x_in(x_in), .y_in(y_in), .alive_out(alive[16]));
     lobster s17(.x_in(x_in), .y_in(y_in), .alive_out(alive[17]));

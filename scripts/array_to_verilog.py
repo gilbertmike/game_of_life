@@ -52,11 +52,6 @@ def rle_to_arr(lines):
                     ncol = int(s[1].strip())
                 elif s[0].strip() == 'y':
                     nrow = int(s[1].strip())
-                elif s[0].strip() == 'rule':
-                    assert \
-                        s[1].strip() in {'B3/S23', 's23/b3', 'b3/s23', '3/23',
-                                         '23/3'}, \
-                        'Not our rule!'
         else:
             rle += l
 
@@ -69,15 +64,15 @@ def rle_to_arr(lines):
 
     array = [[0]*SEED_SIZE]*pad_top
     row = [0]*pad_left
-    num = 1
+    num = 0
     for c in rle:
         if c.isnumeric():
-            num = int(c)
+            num = num*10 + int(c)
         elif c == '$':
             row += [0]*(SEED_SIZE - len(row))
             array.append(row)
             row = [0]*pad_left
-            num = 1
+            num = 0
         elif c == '!':
             row += [0]*(SEED_SIZE - len(row))
             array.append(row)
@@ -85,13 +80,19 @@ def rle_to_arr(lines):
             assert SEED_SIZE == len(array) and SEED_SIZE == len(array[0]), 'Parsing error!'
             return array
         elif c == 'b':
-            row += [0]*num
-            num = 1
+            if num == 0:
+                row += [0]
+            else:
+                row += [0]*num
+                num = 0
         elif c == 'o':
-            row += [1]*num
-            num = 1
+            if num == 0:
+                row += [1]
+            else:
+                row += [1]*num
+                num = 0
         else:
-            assert False, 'Parsing error!'
+            assert False, 'Parsing error! Unknown char.'
 
 def array_to_verilog(name, arr):
     prog = get_header(name)
@@ -126,7 +127,8 @@ def rle_dir_to_verilog(dirname):
             name, module = rle_file_to_verilog(fname)
             all_modules += module
             module_names.append(name)
-        except:
+        except Exception as e:
+            print(str(e))
             print('Failed to parse ', fname)
 
     final = all_modules

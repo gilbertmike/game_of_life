@@ -1,4 +1,4 @@
-COE_HEADER = '''memory_initialization_radix=8;
+COE_HEADER = '''memory_initialization_radix=2;
 memory_initialization_vector=
 '''
 
