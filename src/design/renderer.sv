@@ -333,7 +333,7 @@ endmodule
 // *
 // * Output: highlight_pix_out
 // *
-module highlight_render# (parameter WIDTH = 160, HEIGHT = 15, COLOR = 12'h777) 
+module highlight_render# (parameter WIDTH = 160, HEIGHT = 15, COLOR = 12'h666) 
                         (input wire clk_in,
                          input wire [10:0] hcount_in,
                          input wire [9:0] vcount_in,
@@ -345,7 +345,7 @@ module highlight_render# (parameter WIDTH = 160, HEIGHT = 15, COLOR = 12'h777)
         logic[9:0] hl_y_coor;
         
         always_comb begin
-            hl_y_coor = HIGHLIGHT_Y_BEGIN + (seed_idx_in - 1) * HEIGHT;
+            hl_y_coor = HIGHLIGHT_Y_BEGIN + (seed_idx_in - 1)*HEIGHT;
         end
         
         always_ff @(posedge clk_in) begin
@@ -355,11 +355,12 @@ module highlight_render# (parameter WIDTH = 160, HEIGHT = 15, COLOR = 12'h777)
                     highlight_pix_out <= COLOR;
                 else 
                     highlight_pix_out <= 0;
-            end                
+            end else 
+                highlight_pix_out <= 0;            
         end 
 endmodule
 
-// * alpha_blend - combines pixels from text_render and text_highlighter
+// * alpha_blend - combines pixels from text_render and text_highlihghter
 // * 
 // * Output: blended_pix_out
 module alpha_blend(
